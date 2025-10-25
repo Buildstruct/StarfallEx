@@ -10,6 +10,7 @@ local Ent_AddCallback,Ent_GetTable,Ent_IsScripted,Ent_IsValid,Ent_RemoveCallback
 
 -- Register privileges
 registerprivilege("entities.applyDamage", "Apply damage", "Allows the user to apply damage to an entity", { entities = {} })
+registerprivilege("entities.proxyDamage", "Apply proxy damage", "Allows the user to make an entity apply damage to an entity", { entities = {} })
 registerprivilege("entities.applyForce", "Apply force", "Allows the user to apply force to an entity", { entities = {} })
 registerprivilege("entities.setPos", "Set Position", "Allows the user to teleport an entity to another location", { entities = {} })
 registerprivilege("entities.setAngles", "Set Angles", "Allows the user to rotate an entity to another orientation", { entities = {} })
@@ -284,12 +285,16 @@ function ents_methods:applyDamage(amt, attacker, inflictor, dmgtype, pos)
 	local dmg = DamageInfo()
 	dmg:SetDamage(amt)
 	if attacker~=nil then
-		dmg:SetAttacker(getent(attacker))
+		local attackerEnt = getent(attacker)
+		checkpermission(instance, attackerEnt, "entities.proxyDamage")
+		dmg:SetAttacker(attackerEnt)
 	else
 		dmg:SetAttacker(instance.player)
 	end
 	if inflictor~=nil then
-		dmg:SetInflictor(getent(inflictor))
+		local inflictorEnt = getent(inflictor)
+		checkpermission(instance, inflictorEnt, "entities.proxyDamage")
+		dmg:SetInflictor(inflictorEnt)
 	end
 	if dmgtype~=nil then
 		checkluatype(dmgtype, TYPE_NUMBER)
