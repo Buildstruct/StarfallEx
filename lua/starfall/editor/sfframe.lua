@@ -456,7 +456,12 @@ function Editor:GetLastTab() return self.LastTab end
 
 function Editor:SetLastTab(Tab) self.LastTab = Tab end
 
-function Editor:GetActiveTab() return self.C.TabHolder:GetActiveTab() end
+function Editor:GetActiveTab() 
+	local tab = self.C.TabHolder:GetActiveTab()
+	if tab then return tab end
+	self:CreateTab()
+	return self.C.TabHolder:GetActiveTab()
+end
 
 function Editor:GetNumTabs() return #self.C.TabHolder.Items end
 
@@ -1756,7 +1761,9 @@ function Editor:setFileAutoReload(enabled)
 	self.autoReloadEnabled = enabled
 	if enabled then
 		timer.Create(Editor.EditorFileAutoReload:GetName(), self.autoReloadInterval, 0, function(_, _, newValue)
-			self:ReloadTabs(false)
+			if IsValid(self) then
+				self:ReloadTabs(false)
+			end
 		end)
 	else
 		timer.Remove(Editor.EditorFileAutoReload:GetName())
