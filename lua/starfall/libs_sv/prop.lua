@@ -411,7 +411,7 @@ function props_library.createSent(pos, ang, class, frozen, data)
 	checkpermission(instance,  nil, "prop.create")
 
 	checkluatype(class, TYPE_STRING)
-	if frozen~=nil then checkluatype(frozen, TYPE_BOOL) else frozen = false end
+	if frozen ~= nil then checkluatype(frozen, TYPE_BOOL) else frozen = false end
 
 	pos = SF.clampPos(vunwrap1(pos))
 	ang = aunwrap1(ang)
@@ -430,8 +430,8 @@ function props_library.createSent(pos, ang, class, frozen, data)
 
 	if swep then
 		if ply ~= SF.Superuser then
-			if ((not swep.Spawnable and not ply:IsAdmin()) or
-					(swep.AdminOnly and not ply:IsAdmin())) then SF.Throw("This swep is admin only!", 2) end
+			if ((not scripted_ents.GetMember(class, "Spawnable") and not ply:IsAdmin()) or
+					(scripted_ents.GetMember(class, "AdminOnly") and not ply:IsAdmin())) then SF.Throw("This swep is admin only!", 2) end
 			if gamemode.Call("PlayerSpawnSWEP", ply, class, swep) == false then SF.Throw("Another hook prevented the swep from spawning", 2) end
 		end
 
@@ -446,14 +446,15 @@ function props_library.createSent(pos, ang, class, frozen, data)
 		hookcall = "PlayerSpawnedSWEP"
 	elseif sent then
 		if ply ~= SF.Superuser then
-			if sent.AdminOnly and not ply:IsAdmin() then SF.Throw("This sent is admin only!", 2) end
+			if scripted_ents.GetMember(class, "AdminOnly") and not ply:IsAdmin() then SF.Throw("This sent is admin only!", 2) end
 			if gamemode.Call("PlayerSpawnSENT", ply, class) == false then SF.Throw("Another hook prevented the sent from spawning", 2) end
 		end
 
 		entOk, entErr = instance:runExternal(function()
-			local sent = scripted_ents.GetStored( class )
-			if sent and sent.t.SpawnFunction then
-				entity = sent.t.SpawnFunction( sent.t, ply, SF.dumbTrace(NULL, pos), class )
+			local classTbl = scripted_ents.GetStored( class )
+			local SpawnFunction = scripted_ents.GetMember(class, "SpawnFunction")
+			if classTbl and SpawnFunction then
+				entity = SpawnFunction( classTbl.t, ply, SF.dumbTrace(NULL, pos), class )
 			else
 				entity = ents.Create( class )
 				if Ent_IsValid(entity) then
@@ -468,11 +469,10 @@ function props_library.createSent(pos, ang, class, frozen, data)
 		hookcall = "PlayerSpawnedSENT"
 	elseif npc then
 		if ply ~= SF.Superuser then
-			if npc.AdminOnly and not ply:IsAdmin() then SF.Throw("This npc is admin only!", 2) end
+			if scripted_ents.GetMember(class, "AdminOnly") and not ply:IsAdmin() then SF.Throw("This npc is admin only!", 2) end
 			if gamemode.Call("PlayerSpawnNPC", ply, class, "") == false then SF.Throw("Another hook prevented the npc from spawning", 2) end
 		end
 
-		
 		entOk, entErr = instance:runExternal(function()
 			entity = ents.Create(npc.Class)
 
@@ -553,7 +553,7 @@ function props_library.createSent(pos, ang, class, frozen, data)
 		local classTbl = scripted_ents.GetStored(class)
 		if not classTbl then SF.Throw("This entity doesn't exist!", 2) end
 		if ply ~= SF.Superuser then
-			if classTbl.t.AdminOnly and not ply:IsAdmin() then SF.Throw("This sent is admin only!", 2) end
+			if scripted_ents.GetMember(class, "AdminOnly") and not ply:IsAdmin() then SF.Throw("This sent is admin only!", 2) end
 			if gamemode.Call("PlayerSpawnSENT", ply, class) == false then SF.Throw("Another hook prevented the sent from spawning", 2) end
 		end
 
@@ -572,19 +572,19 @@ function props_library.createSent(pos, ang, class, frozen, data)
 		for param, org in pairs(sentparams) do
 			local value = data[param]
 
-			if value~=nil then
+			if value ~= nil then
 				value = ounwrap(value) or value
 
-				if org[1]==TYPE_COLOR then
+				if org[1] == TYPE_COLOR then
 					if not IsColor(value) then SF.ThrowTypeError("Color", SF.GetType(value), 2, "Parameter: " .. param) end
-				elseif org[1]==TYPE_NUMBER then
+				elseif org[1] == TYPE_NUMBER then
 					SF.CheckValidNumber(value, nil, "Parameter: " .. param)
 				else
 					checkluatype(value, org[1], nil, "Parameter: " .. param)
 				end
 				enttbl[param] = value
 
-			elseif org[2]~=nil then
+			elseif org[2] ~= nil then
 				enttbl[param] = org[2]
 			else
 				SF.Throw("Missing data parameter: " .. param, 2)
