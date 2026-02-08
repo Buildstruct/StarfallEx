@@ -1178,11 +1178,16 @@ if SERVER then
 	end
 
 	--- Stops the entity from being saved on duplication or map save.
+	-- @param boolean? allowDupe Set to true to re-enable duplicating (default false)	
 	-- @server
-	function ents_methods:doNotDuplicate()
+	function ents_methods:doNotDuplicate(allowDupe)
 		local ent = getent(self)
 		checkpermission(instance, ent, "entities.doNotDuplicate")
-		Ent_GetTable(ent).DoNotDuplicate = true
+		if allowDupe then
+			Ent_GetTable(ent).DoNotDuplicate = nil
+		else
+			Ent_GetTable(ent).DoNotDuplicate = true
+		end
 	end
 
 end
@@ -1790,11 +1795,24 @@ function ents_methods:setEyeTarget(pos)
     Ent_SetEyeTarget(ent, vec)
 end
 	
---- Gets the model of an entity
+--- Gets the model of an entity. For prop_effect, see ent:getEffectModel()
 -- @shared
 -- @return string Model of the entity
 function ents_methods:getModel()
 	return Ent_GetModel(getent(self))
+end
+
+--- Gets the model of the effect on prop_effect entities
+-- @shared
+-- @return string Model of the effect
+function ents_methods:getEffectModel()
+	local ent = getent(self)
+
+	if Ent_GetClass(ent) ~= "prop_effect" then
+		SF.Throw("This only works on prop_effect", 2)
+	end
+
+	return Ent_GetModel(Ent_GetTable(ent).AttachedEntity)
 end
 
 --- Returns the entity's model bounds. This is different than the collision bounds/hull.
