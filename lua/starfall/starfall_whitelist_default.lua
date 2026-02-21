@@ -220,3 +220,7 @@ simple [[rawcdn.githack.com]]
 --- https://cdn.statically.io/gh/Metastruct/garrysmod-chatsounds/master/sound/chatsounds/autoadd/anime/i%20love%20you.ogg
 --- https://cdn.statically.io/img/statically.dev/w=300,h=500/cat.jpg
 simple [[cdn.statically.io]]
+
+simple [[www.myinstants.com]]
+
+simple [[buildstruct.net]]
