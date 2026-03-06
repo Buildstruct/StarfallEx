@@ -11,6 +11,14 @@ if CLIENT then
 	registerprivilege("player.getFriendStatus", "FriendStatus", "Whether friend status can be retrieved", { client = { default = 1 } })
 end
 
+local BSA
+local function is_cloak(instance, self)
+	BSA = BSA or _G.BSA
+	if not BSA then return false end
+	if instance.player == SF.Superuser then return false end
+	return BSA.Players.IsCloakedFrom(self, instance.player)
+end
+
 -- Player animation
 local playerAnimAdd
 local playerAnimRemove
@@ -393,6 +401,8 @@ end
 -- @shared
 -- @return table Trace data https://wiki.facepunch.com/gmod/Structures/TraceResult
 function player_methods:getEyeTrace()
+	local e = getply(self)
+	if is_cloak(instance, e) then return nil end
 	return SF.StructWrapper(instance, Ply_GetEyeTrace(getply(self)), "TraceResult")
 end
 

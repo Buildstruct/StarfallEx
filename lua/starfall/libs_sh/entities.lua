@@ -15,6 +15,13 @@ registerprivilege("entities.setHealth", "SetHealth", "Allows the user to change 
 registerprivilege("entities.setMaxHealth", "SetMaxHealth", "Allows the user to change an entity's max health", { entities = {} })
 registerprivilege("entities.doNotDuplicate", "DoNotDuplicate", "Allows the user to set whether an entity will be saved on dupes or map saves", { entities = {} })
 
+local BSA
+local function is_cloak(instance, self)
+	BSA = BSA or _G.BSA
+	if not BSA then return false end
+	if instance.player == SF.Superuser then return false end
+	return BSA.Players.IsCloakedFrom(self, instance.player)
+end
 
 local emitSoundBurst = SF.BurstObject("emitSound", "emitsound", 180, 200, " sounds can be emitted per second", "Number of sounds that can be emitted in a short time")
 
@@ -1210,21 +1217,27 @@ end
 -- @shared
 -- @return Vector The position vector
 function ents_methods:getPos()
-	return vwrap(Ent_GetPos(getent(self)))
+	local e = getent(self)
+	if is_cloak(instance, e) then return vwrap(Vector()) end
+	return vwrap(Ent_GetPos(e))
 end
 
 --- Returns the position of the entity, local to its parent
 -- @shared
 -- @return Vector The position vector
 function ents_methods:getLocalPos()
-	return vwrap(Ent_GetLocalPos(getent(self)))
+	local e = getent(self)
+	if is_cloak(instance, e) then return vwrap(Vector()) end
+	return vwrap(Ent_GetLocalPos(e))
 end
 
 --- Returns how submerged the entity is in water
 -- @shared
 -- @return number The water level. 0 none, 1 slightly, 2 at least halfway, 3 all the way
 function ents_methods:getWaterLevel()
-	return Ent_WaterLevel(getent(self))
+	local e = getent(self)
+	if is_cloak(instance, e) then return 0 end
+	return Ent_WaterLevel(e)
 end
 
 --- Returns the ragdoll bone index given a bone name
@@ -1242,8 +1255,9 @@ end
 -- @return VMatrix The matrix
 function ents_methods:getBoneMatrix(bone)
 	if bone == nil then bone = 0 else checkluatype(bone, TYPE_NUMBER) end
-
-	return mwrap(Ent_GetBoneMatrix(getent(self), bone))
+	local e = getent(self)
+	if is_cloak(instance, e) then return mwrap(Matrix()) end
+	return mwrap(Ent_GetBoneMatrix(e, bone))
 end
 
 if CLIENT then
@@ -1290,7 +1304,9 @@ end
 -- @shared
 -- @return VMatrix The matrix
 function ents_methods:getMatrix()
-	return mwrap(Ent_GetWorldTransformMatrix(getent(self)))
+	local e = getent(self)
+	if is_cloak(instance, e) then return mwrap(Matrix()) end
+	return mwrap(Ent_GetWorldTransformMatrix(e))
 end
 
 --- Returns the number of an entity's bones
@@ -1325,7 +1341,9 @@ end
 -- @return Angle Angle of the bone
 function ents_methods:getBonePosition(bone)
 	if bone == nil then bone = 0 else checkluatype(bone, TYPE_NUMBER) end
-	local pos, ang = Ent_GetBonePosition(getent(self), bone)
+	local e = getent(self)
+	if is_cloak(instance, e) then return vwrap(Vector()), awrap(Angle()) end
+	local pos, ang = Ent_GetBonePosition(e, bone)
 	if not pos then SF.Throw("Invalid bone ("..bone..")!",2) end
 	return vwrap(pos), awrap(ang)
 end
@@ -1386,6 +1404,7 @@ end
 -- @return Vector The position vector of the outer bounding box center
 function ents_methods:obbCenterW()
 	local ent = getent(self)
+	if is_cloak(instance, ent) then return vwrap(Vector()) end
 	return vwrap(Ent_LocalToWorld(ent, Ent_OBBCenter(ent)))
 end
 
@@ -1408,7 +1427,9 @@ end
 -- @return Vector The min bounding box vector
 -- @return Vector The max bounding box vector
 function ents_methods:worldSpaceAABB()
-	local a, b = Ent_WorldSpaceAABB(getent(self))
+	local e = getent(self)
+	if is_cloak(instance, e) then return vwrap(Vector()), vwrap(Vector()) end
+	local a, b = Ent_WorldSpaceAABB(e)
 	return vwrap(a), vwrap(b)
 end
 
@@ -1435,13 +1456,17 @@ end
 -- @shared
 -- @return Angle The angle
 function ents_methods:getAngles()
-	return awrap(Ent_GetAngles(getent(self)))
+	local e = getent(self)
+	if is_cloak(instance, e) then return awrap(Angle()) end
+	return awrap(Ent_GetAngles(e))
 end
 
 --- Returns the angle of the entity, local to its parent
 -- @shared
 -- @return Angle The angle
 function ents_methods:getLocalAngles()
+	local e = getent(self)
+	if is_cloak(instance, e) then return awrap(Angle()) end
 	return awrap(Ent_GetLocalAngles(getent(self)))
 end
 
@@ -1467,6 +1492,8 @@ end
 -- @shared
 -- @return Vector The velocity vector
 function ents_methods:getVelocity()
+	local e = getent(self)
+	if is_cloak(instance, e) then return vwrap(Vector()) end
 	return vwrap(Ent_GetVelocity(getent(self)))
 end
 
@@ -1475,6 +1502,7 @@ end
 -- @return Vector Vector velocity of the physics object local to itself
 function ents_methods:getLocalVelocity()
 	local ent = getent(self)
+	if is_cloak(instance, ent) then return vwrap(Vector()) end
 	return vwrap(Ent_WorldToLocal(ent, Ent_GetVelocity(ent) + Ent_GetPos(ent)))
 end
 
@@ -1482,7 +1510,9 @@ end
 -- @shared
 -- @return Vector The angular velocity as a vector
 function ents_methods:getAngleVelocity()
-	local phys = Ent_GetPhysicsObject(getent(self))
+	local e = getent(self)
+	if is_cloak(instance, e) then return vwrap(Vector()) end
+	local phys = Ent_GetPhysicsObject(e)
 	if not Phys_IsValid(phys) then SF.Throw("Physics object is invalid", 2) end
 	return vwrap(Phys_GetAngleVelocity(phys))
 end
@@ -1491,7 +1521,9 @@ end
 -- @shared
 -- @return Angle The angular velocity as an angle
 function ents_methods:getAngleVelocityAngle()
-	local phys = Ent_GetPhysicsObject(getent(self))
+	local e = getent(self)
+	if is_cloak(instance, e) then return vwrap(Vector()) end
+	local phys = Ent_GetPhysicsObject(e)
 	if not Phys_IsValid(phys) then SF.Throw("Physics object is invalid", 2) end
 	local vec = Phys_GetAngleVelocity(phys)
 	return awrap(Angle(vec.y, vec.z, vec.x))
@@ -1502,7 +1534,9 @@ end
 -- @param Vector data Local space vector
 -- @return Vector data as world space vector
 function ents_methods:localToWorld(data)
-	return vwrap(Ent_LocalToWorld(getent(self), vunwrap1(data)))
+	local e = getent(self)
+	if is_cloak(instance, e) then return vwrap(Vector()) end
+	return vwrap(Ent_LocalToWorld(e, vunwrap1(data)))
 end
 
 if SERVER then
@@ -1511,7 +1545,9 @@ if SERVER then
 	-- @param Vector data Local space vector direction
 	-- @return Vector data as world space vector direction
 	function ents_methods:localToWorldVector(data)
-		return vwrap(Phys_LocalToWorldVector(Ent_GetPhysicsObject(getent(self)), vunwrap1(data)))
+		local e = getent(self)
+		if is_cloak(instance, e) then return vwrap(Vector()) end
+		return vwrap(Phys_LocalToWorldVector(Ent_GetPhysicsObject(e), vunwrap1(data)))
 	end
 
 	--- Converts a direction vector in world space to entity local space
@@ -1519,16 +1555,20 @@ if SERVER then
 	-- @param Vector data World space direction vector
 	-- @return Vector data as local space direction vector
 	function ents_methods:worldToLocalVector(data)
-		return vwrap(Phys_WorldToLocalVector(Ent_GetPhysicsObject(getent(self)), vunwrap1(data)))
+		local e = getent(self)
+		if is_cloak(instance, e) then return vwrap(Vector()) end
+		return vwrap(Phys_WorldToLocalVector(Ent_GetPhysicsObject(e), vunwrap1(data)))
 	end
 else
 	function ents_methods:localToWorldVector(data)
 		local ent = getent(self)
+		if is_cloak(instance, ent) then return vwrap(Vector()) end
 		return vwrap(Ent_LocalToWorld(ent, vunwrap1(data)) - Ent_GetPos(ent))
 	end
 
 	function ents_methods:worldToLocalVector(data)
 		local ent = getent(self)
+		if is_cloak(instance, ent) then return vwrap(Vector()) end
 		return vwrap(Ent_WorldToLocal(ent, vunwrap1(data) + Ent_GetPos(ent)))
 	end
 end
@@ -1538,7 +1578,9 @@ end
 -- @param Angle data Local space angle
 -- @return Angle data as world space angle
 function ents_methods:localToWorldAngles(data)
-	return awrap(Ent_LocalToWorldAngles(getent(self), aunwrap1(data)))
+	local e = getent(self)
+	if is_cloak(instance, e) then return awrap(Angle()) end
+	return awrap(Ent_LocalToWorldAngles(e, aunwrap1(data)))
 end
 
 --- Converts a vector in world space to entity local space
@@ -1546,7 +1588,9 @@ end
 -- @param Vector data World space vector
 -- @return Vector data as local space vector
 function ents_methods:worldToLocal(data)
-	return vwrap(Ent_WorldToLocal(getent(self), vunwrap1(data)))
+	local e = getent(self)
+	if is_cloak(instance, e) then return vwrap(Vector()) end
+	return vwrap(Ent_WorldToLocal(e, vunwrap1(data)))
 end
 
 --- Converts an angle in world space to entity local space
@@ -1554,7 +1598,9 @@ end
 -- @param Angle data World space angle
 -- @return Angle data as local space angle
 function ents_methods:worldToLocalAngles(data)
-	return awrap(Ent_WorldToLocalAngles(getent(self), aunwrap1(data)))
+	local e = getent(self)
+	if is_cloak(instance, e) then return awrap(Angle()) end
+	return awrap(Ent_WorldToLocalAngles(e, aunwrap1(data)))
 end
 
 --- Gets the animation number from the animation name
@@ -1873,7 +1919,9 @@ end
 -- @return Vector Minimum extent of the AABB relative to entity's position.
 -- @return Vector Maximum extent of the AABB relative to entity's position.
 function ents_methods:getRotatedAABB(min, max)
-	local minvec, maxvec = Ent_GetRotatedAABB(getent(self), vunwrap1(min), vunwrap2(max))
+	local e = getent(self)
+	if is_cloak(instance, e) then return vwrap(Vector()), vwrap(Vector()) end
+	local minvec, maxvec = Ent_GetRotatedAABB(e, vunwrap1(min), vunwrap2(max))
 	return vwrap(minvec), vwrap(maxvec)
 end
 
@@ -1895,7 +1943,9 @@ end
 -- @shared
 -- @return Angle Angles of the entity's eyes
 function ents_methods:getEyeAngles()
-	return awrap(Ent_EyeAngles(getent(self)))
+	local e = getent(self)
+	if is_cloak(instance, e) then return awrap(Angle()) end
+	return awrap(Ent_EyeAngles(e))
 end
 
 --- Gets the entity's eye position
@@ -1903,7 +1953,9 @@ end
 -- @return Vector Eye position of the entity
 -- @return Vector? In case of a ragdoll, the position of the second eye
 function ents_methods:getEyePos()
-	local pos1, pos2 = Ent_EyePos(getent(self))
+	local e = getent(self)
+	if is_cloak(instance, e) then return vwrap(Vector()) end
+	local pos1, pos2 = Ent_EyePos(e)
 	if pos2 then
 		return vwrap(pos1), vwrap(pos2)
 	end
@@ -1939,21 +1991,27 @@ end
 -- @shared
 -- @return Vector Vector up
 function ents_methods:getUp()
-	return vwrap(Ent_GetUp(getent(self)))
+	local e = getent(self)
+	if is_cloak(instance, e) then return vwrap(Vector()) end
+	return vwrap(Ent_GetUp(e))
 end
 
 --- Gets the entity's right vector
 -- @shared
 -- @return Vector Vector right
 function ents_methods:getRight()
-	return vwrap(Ent_GetRight(getent(self)))
+	local e = getent(self)
+	if is_cloak(instance, e) then return vwrap(Vector()) end
+	return vwrap(Ent_GetRight(e))
 end
 
 --- Gets the entity's forward vector
 -- @shared
 -- @return Vector Vector forward
 function ents_methods:getForward()
-	return vwrap(Ent_GetForward(getent(self)))
+	local e = getent(self)
+	if is_cloak(instance, e) then return vwrap(Vector()) end
+	return vwrap(Ent_GetForward(e))
 end
 
 --- Returns the timer.curtime() time the entity was created on
