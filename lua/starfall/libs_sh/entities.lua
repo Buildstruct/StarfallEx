@@ -72,6 +72,14 @@ local function Ent_IsWeapon(ent) return dgetmeta(ent)==WEP_META end
 
 local Phys_GetAngleVelocity,Phys_GetInertia,Phys_GetMass,Phys_GetMassCenter,Phys_IsValid,Phys_LocalToWorldVector,Phys_WorldToLocalVector = PHYS_META.GetAngleVelocity,PHYS_META.GetInertia,PHYS_META.GetMass,PHYS_META.GetMassCenter,PHYS_META.IsValid,PHYS_META.LocalToWorldVector,PHYS_META.WorldToLocalVector
 
+local function is_cloaked_chain(instance, ent)
+	while Ent_IsValid(ent) do
+		if is_cloak(instance, ent) then return true end
+		ent = Ent_GetParent(ent)
+	end
+	return false
+end
+
 local owrap, ounwrap = instance.WrapObject, instance.UnwrapObject
 local ents_methods, ent_meta, ewrap, eunwrap = instance.Types.Entity.Methods, instance.Types.Entity, instance.Types.Entity.Wrap, instance.Types.Entity.Unwrap
 local ang_meta, awrap, aunwrap = instance.Types.Angle, instance.Types.Angle.Wrap, instance.Types.Angle.Unwrap
@@ -389,6 +397,7 @@ function ents_methods:setParent(parent, attachment, bone)
 	if attachment ~= nil and bone ~= nil then SF.Throw("Arguments `attachment` and `bone` are mutually exclusive!", 2) end
 	if parent ~= nil then
 		parent = getent(parent)
+		if is_cloaked_chain(instance, parent) then SF.Throw("Cannot parent to a cloaked entity.", 2) end
 		if Ent_IsPlayer(parent) and not Ent_GetTable(child).IsSFHologram then SF.Throw("Only holograms can be parented to players!", 2) end
 		local param, type
 		if bone ~= nil then
@@ -823,21 +832,38 @@ end
 -- @shared
 -- @return Entity? Entity's parent or nil if not parented
 function ents_methods:getParent()
-	return ewrap(Ent_GetParent(getent(self)))
+	local ent = getent(self)
+	if is_cloaked_chain(instance, ent) then return nil end
+
+	local parent = Ent_GetParent(ent)
+	if Ent_IsValid(parent) and is_cloaked_chain(instance, parent) then return nil end
+	return ewrap(parent)
 end
 
 --- Gets the children (the parented entities) of an entity
 -- @shared
 -- @return table Table of parented children
 function ents_methods:getChildren()
-	return instance.Sanitize(Ent_GetChildren(getent(self)))
+	local ent = getent(self)
+	if is_cloaked_chain(instance, ent) then return {} end
+
+	local children = {}
+	for _, child in ipairs(Ent_GetChildren(ent)) do
+		if not is_cloaked_chain(instance, child) then
+			children[#children + 1] = child
+		end
+	end
+
+	return instance.Sanitize(children)
 end
 
 --- Gets the attachment index the entity is parented to
 -- @shared
 -- @return number Index of the attachment the entity is parented to or 0
 function ents_methods:getAttachmentParent()
-	return Ent_GetParentAttachment(getent(self))
+	local ent = getent(self)
+	if is_cloaked_chain(instance, ent) then return 0 end
+	return Ent_GetParentAttachment(ent)
 end
 
 --- Gets the attachment index via the entity and it's attachment name
@@ -845,7 +871,9 @@ end
 -- @param string name of the attachment to lookup
 -- @return number Number of the attachment index, or 0 if it doesn't exist
 function ents_methods:lookupAttachment(name)
-	return Ent_LookupAttachment(getent(self), name)
+	local ent = getent(self)
+	if is_cloaked_chain(instance, ent) then return 0 end
+	return Ent_LookupAttachment(ent, name)
 end
 
 --- Gets the position and angle of an attachment
@@ -854,7 +882,9 @@ end
 -- @return Vector? Position, nil if the attachment doesn't exist
 -- @return Angle? Orientation, nil if the attachment doesn't exist
 function ents_methods:getAttachment(index)
-	local t = Ent_GetAttachment(getent(self), index)
+	local ent = getent(self)
+	if is_cloaked_chain(instance, ent) then return end
+	local t = Ent_GetAttachment(ent, index)
 	if t then return vwrap(t.Pos), awrap(t.Ang) end
 end
 
@@ -862,7 +892,9 @@ end
 -- @shared
 -- @return table? Table of attachment id and attachment name or nil
 function ents_methods:getAttachments()
-	return Ent_GetAttachments(getent(self))
+	local ent = getent(self)
+	if is_cloaked_chain(instance, ent) then return {} end
+	return Ent_GetAttachments(ent)
 end
 
 --- Gets the collision group enum of the entity
@@ -1218,7 +1250,7 @@ end
 -- @return Vector The position vector
 function ents_methods:getPos()
 	local e = getent(self)
-	if is_cloak(instance, e) then return vwrap(Vector()) end
+	if is_cloaked_chain(instance, e) then return vwrap(Vector()) end
 	return vwrap(Ent_GetPos(e))
 end
 
@@ -1227,7 +1259,7 @@ end
 -- @return Vector The position vector
 function ents_methods:getLocalPos()
 	local e = getent(self)
-	if is_cloak(instance, e) then return vwrap(Vector()) end
+	if is_cloaked_chain(instance, e) then return vwrap(Vector()) end
 	return vwrap(Ent_GetLocalPos(e))
 end
 
@@ -1236,7 +1268,7 @@ end
 -- @return number The water level. 0 none, 1 slightly, 2 at least halfway, 3 all the way
 function ents_methods:getWaterLevel()
 	local e = getent(self)
-	if is_cloak(instance, e) then return 0 end
+	if is_cloaked_chain(instance, e) then return 0 end
 	return Ent_WaterLevel(e)
 end
 
@@ -1256,7 +1288,7 @@ end
 function ents_methods:getBoneMatrix(bone)
 	if bone == nil then bone = 0 else checkluatype(bone, TYPE_NUMBER) end
 	local e = getent(self)
-	if is_cloak(instance, e) then return mwrap(Matrix()) end
+	if is_cloaked_chain(instance, e) then return mwrap(Matrix()) end
 	return mwrap(Ent_GetBoneMatrix(e, bone))
 end
 
@@ -1305,7 +1337,7 @@ end
 -- @return VMatrix The matrix
 function ents_methods:getMatrix()
 	local e = getent(self)
-	if is_cloak(instance, e) then return mwrap(Matrix()) end
+	if is_cloaked_chain(instance, e) then return mwrap(Matrix()) end
 	return mwrap(Ent_GetWorldTransformMatrix(e))
 end
 
@@ -1342,7 +1374,7 @@ end
 function ents_methods:getBonePosition(bone)
 	if bone == nil then bone = 0 else checkluatype(bone, TYPE_NUMBER) end
 	local e = getent(self)
-	if is_cloak(instance, e) then return vwrap(Vector()), awrap(Angle()) end
+	if is_cloaked_chain(instance, e) then return vwrap(Vector()), awrap(Angle()) end
 	local pos, ang = Ent_GetBonePosition(e, bone)
 	if not pos then SF.Throw("Invalid bone ("..bone..")!",2) end
 	return vwrap(pos), awrap(ang)
@@ -1404,7 +1436,7 @@ end
 -- @return Vector The position vector of the outer bounding box center
 function ents_methods:obbCenterW()
 	local ent = getent(self)
-	if is_cloak(instance, ent) then return vwrap(Vector()) end
+	if is_cloaked_chain(instance, ent) then return vwrap(Vector()) end
 	return vwrap(Ent_LocalToWorld(ent, Ent_OBBCenter(ent)))
 end
 
@@ -1428,7 +1460,7 @@ end
 -- @return Vector The max bounding box vector
 function ents_methods:worldSpaceAABB()
 	local e = getent(self)
-	if is_cloak(instance, e) then return vwrap(Vector()), vwrap(Vector()) end
+	if is_cloaked_chain(instance, e) then return vwrap(Vector()), vwrap(Vector()) end
 	local a, b = Ent_WorldSpaceAABB(e)
 	return vwrap(a), vwrap(b)
 end
@@ -1447,6 +1479,7 @@ end
 -- @return Vector The position vector of the mass center
 function ents_methods:getMassCenterW()
 	local ent = getent(self)
+	if is_cloaked_chain(instance, ent) then return vwrap(Vector()) end
 	local phys = Ent_GetPhysicsObject(ent)
 	if not Phys_IsValid(phys) then SF.Throw("Physics object is invalid", 2) end
 	return vwrap(Ent_LocalToWorld(ent, Phys_GetMassCenter(phys)))
@@ -1457,7 +1490,7 @@ end
 -- @return Angle The angle
 function ents_methods:getAngles()
 	local e = getent(self)
-	if is_cloak(instance, e) then return awrap(Angle()) end
+	if is_cloaked_chain(instance, e) then return awrap(Angle()) end
 	return awrap(Ent_GetAngles(e))
 end
 
@@ -1466,7 +1499,7 @@ end
 -- @return Angle The angle
 function ents_methods:getLocalAngles()
 	local e = getent(self)
-	if is_cloak(instance, e) then return awrap(Angle()) end
+	if is_cloaked_chain(instance, e) then return awrap(Angle()) end
 	return awrap(Ent_GetLocalAngles(getent(self)))
 end
 
@@ -1493,7 +1526,7 @@ end
 -- @return Vector The velocity vector
 function ents_methods:getVelocity()
 	local e = getent(self)
-	if is_cloak(instance, e) then return vwrap(Vector()) end
+	if is_cloaked_chain(instance, e) then return vwrap(Vector()) end
 	return vwrap(Ent_GetVelocity(getent(self)))
 end
 
@@ -1502,7 +1535,7 @@ end
 -- @return Vector Vector velocity of the physics object local to itself
 function ents_methods:getLocalVelocity()
 	local ent = getent(self)
-	if is_cloak(instance, ent) then return vwrap(Vector()) end
+	if is_cloaked_chain(instance, ent) then return vwrap(Vector()) end
 	return vwrap(Ent_WorldToLocal(ent, Ent_GetVelocity(ent) + Ent_GetPos(ent)))
 end
 
@@ -1511,7 +1544,7 @@ end
 -- @return Vector The angular velocity as a vector
 function ents_methods:getAngleVelocity()
 	local e = getent(self)
-	if is_cloak(instance, e) then return vwrap(Vector()) end
+	if is_cloaked_chain(instance, e) then return vwrap(Vector()) end
 	local phys = Ent_GetPhysicsObject(e)
 	if not Phys_IsValid(phys) then SF.Throw("Physics object is invalid", 2) end
 	return vwrap(Phys_GetAngleVelocity(phys))
@@ -1522,7 +1555,7 @@ end
 -- @return Angle The angular velocity as an angle
 function ents_methods:getAngleVelocityAngle()
 	local e = getent(self)
-	if is_cloak(instance, e) then return vwrap(Vector()) end
+	if is_cloaked_chain(instance, e) then return vwrap(Vector()) end
 	local phys = Ent_GetPhysicsObject(e)
 	if not Phys_IsValid(phys) then SF.Throw("Physics object is invalid", 2) end
 	local vec = Phys_GetAngleVelocity(phys)
@@ -1535,7 +1568,7 @@ end
 -- @return Vector data as world space vector
 function ents_methods:localToWorld(data)
 	local e = getent(self)
-	if is_cloak(instance, e) then return vwrap(Vector()) end
+	if is_cloaked_chain(instance, e) then return vwrap(Vector()) end
 	return vwrap(Ent_LocalToWorld(e, vunwrap1(data)))
 end
 
@@ -1546,7 +1579,7 @@ if SERVER then
 	-- @return Vector data as world space vector direction
 	function ents_methods:localToWorldVector(data)
 		local e = getent(self)
-		if is_cloak(instance, e) then return vwrap(Vector()) end
+		if is_cloaked_chain(instance, e) then return vwrap(Vector()) end
 		return vwrap(Phys_LocalToWorldVector(Ent_GetPhysicsObject(e), vunwrap1(data)))
 	end
 
@@ -1556,19 +1589,19 @@ if SERVER then
 	-- @return Vector data as local space direction vector
 	function ents_methods:worldToLocalVector(data)
 		local e = getent(self)
-		if is_cloak(instance, e) then return vwrap(Vector()) end
+		if is_cloaked_chain(instance, e) then return vwrap(Vector()) end
 		return vwrap(Phys_WorldToLocalVector(Ent_GetPhysicsObject(e), vunwrap1(data)))
 	end
 else
 	function ents_methods:localToWorldVector(data)
 		local ent = getent(self)
-		if is_cloak(instance, ent) then return vwrap(Vector()) end
+		if is_cloaked_chain(instance, ent) then return vwrap(Vector()) end
 		return vwrap(Ent_LocalToWorld(ent, vunwrap1(data)) - Ent_GetPos(ent))
 	end
 
 	function ents_methods:worldToLocalVector(data)
 		local ent = getent(self)
-		if is_cloak(instance, ent) then return vwrap(Vector()) end
+		if is_cloaked_chain(instance, ent) then return vwrap(Vector()) end
 		return vwrap(Ent_WorldToLocal(ent, vunwrap1(data) + Ent_GetPos(ent)))
 	end
 end
@@ -1579,7 +1612,7 @@ end
 -- @return Angle data as world space angle
 function ents_methods:localToWorldAngles(data)
 	local e = getent(self)
-	if is_cloak(instance, e) then return awrap(Angle()) end
+	if is_cloaked_chain(instance, e) then return awrap(Angle()) end
 	return awrap(Ent_LocalToWorldAngles(e, aunwrap1(data)))
 end
 
@@ -1589,7 +1622,7 @@ end
 -- @return Vector data as local space vector
 function ents_methods:worldToLocal(data)
 	local e = getent(self)
-	if is_cloak(instance, e) then return vwrap(Vector()) end
+	if is_cloaked_chain(instance, e) then return vwrap(Vector()) end
 	return vwrap(Ent_WorldToLocal(e, vunwrap1(data)))
 end
 
@@ -1599,7 +1632,7 @@ end
 -- @return Angle data as local space angle
 function ents_methods:worldToLocalAngles(data)
 	local e = getent(self)
-	if is_cloak(instance, e) then return awrap(Angle()) end
+	if is_cloaked_chain(instance, e) then return awrap(Angle()) end
 	return awrap(Ent_WorldToLocalAngles(e, aunwrap1(data)))
 end
 
@@ -1920,7 +1953,7 @@ end
 -- @return Vector Maximum extent of the AABB relative to entity's position.
 function ents_methods:getRotatedAABB(min, max)
 	local e = getent(self)
-	if is_cloak(instance, e) then return vwrap(Vector()), vwrap(Vector()) end
+	if is_cloaked_chain(instance, e) then return vwrap(Vector()), vwrap(Vector()) end
 	local minvec, maxvec = Ent_GetRotatedAABB(e, vunwrap1(min), vunwrap2(max))
 	return vwrap(minvec), vwrap(maxvec)
 end
@@ -1944,7 +1977,7 @@ end
 -- @return Angle Angles of the entity's eyes
 function ents_methods:getEyeAngles()
 	local e = getent(self)
-	if is_cloak(instance, e) then return awrap(Angle()) end
+	if is_cloaked_chain(instance, e) then return awrap(Angle()) end
 	return awrap(Ent_EyeAngles(e))
 end
 
@@ -1954,7 +1987,7 @@ end
 -- @return Vector? In case of a ragdoll, the position of the second eye
 function ents_methods:getEyePos()
 	local e = getent(self)
-	if is_cloak(instance, e) then return vwrap(Vector()) end
+	if is_cloaked_chain(instance, e) then return vwrap(Vector()) end
 	local pos1, pos2 = Ent_EyePos(e)
 	if pos2 then
 		return vwrap(pos1), vwrap(pos2)
@@ -1992,7 +2025,7 @@ end
 -- @return Vector Vector up
 function ents_methods:getUp()
 	local e = getent(self)
-	if is_cloak(instance, e) then return vwrap(Vector()) end
+	if is_cloaked_chain(instance, e) then return vwrap(Vector()) end
 	return vwrap(Ent_GetUp(e))
 end
 
@@ -2001,7 +2034,7 @@ end
 -- @return Vector Vector right
 function ents_methods:getRight()
 	local e = getent(self)
-	if is_cloak(instance, e) then return vwrap(Vector()) end
+	if is_cloaked_chain(instance, e) then return vwrap(Vector()) end
 	return vwrap(Ent_GetRight(e))
 end
 
@@ -2010,7 +2043,7 @@ end
 -- @return Vector Vector forward
 function ents_methods:getForward()
 	local e = getent(self)
-	if is_cloak(instance, e) then return vwrap(Vector()) end
+	if is_cloaked_chain(instance, e) then return vwrap(Vector()) end
 	return vwrap(Ent_GetForward(e))
 end
 
@@ -2155,7 +2188,9 @@ end
 function ents_methods:getDTAngle(key)
 	checkluatype(key, TYPE_NUMBER)
 	if key<0 or key>31 then SF.Throw("Key must be a int in range 0 - 31") end
-	return awrap(Ent_GetDTAngle(getent(self), key))
+	local ent = getent(self)
+	if is_cloaked_chain(instance, ent) then return awrap(Angle()) end
+	return awrap(Ent_GetDTAngle(ent, key))
 end
 
 --- Gets a datatable boolean
@@ -2165,7 +2200,9 @@ end
 function ents_methods:getDTBool(key)
 	checkluatype(key, TYPE_NUMBER)
 	if key<0 or key>31 then SF.Throw("Key must be a int in range 0 - 31") end
-	return Ent_GetDTBool(getent(self), key)
+	local ent = getent(self)
+	if is_cloaked_chain(instance, ent) then return nil end
+	return Ent_GetDTBool(ent, key)
 end
 
 --- Gets a datatable entity
@@ -2175,7 +2212,9 @@ end
 function ents_methods:getDTEntity(key)
 	checkluatype(key, TYPE_NUMBER)
 	if key<0 or key>31 then SF.Throw("Key must be a int in range 0 - 31") end
-	return owrap(Ent_GetDTEntity(getent(self), key))
+	local ent = getent(self)
+	if is_cloaked_chain(instance, ent) then return nil end
+	return owrap(Ent_GetDTEntity(ent, key))
 end
 
 --- Gets a datatable float
@@ -2185,7 +2224,9 @@ end
 function ents_methods:getDTFloat(key)
 	checkluatype(key, TYPE_NUMBER)
 	if key<0 or key>31 then SF.Throw("Key must be a int in range 0 - 31") end
-	return Ent_GetDTFloat(getent(self), key)
+	local ent = getent(self)
+	if is_cloaked_chain(instance, ent) then return nil end
+	return Ent_GetDTFloat(ent, key)
 end
 
 --- Gets a datatable int
@@ -2195,7 +2236,9 @@ end
 function ents_methods:getDTInt(key)
 	checkluatype(key, TYPE_NUMBER)
 	if key<0 or key>31 then SF.Throw("Key must be a int in range 0 - 31") end
-	return Ent_GetDTInt(getent(self), key)
+	local ent = getent(self)
+	if is_cloaked_chain(instance, ent) then return nil end
+	return Ent_GetDTInt(ent, key)
 end
 
 --- Gets a datatable string
@@ -2205,7 +2248,9 @@ end
 function ents_methods:getDTString(key)
 	checkluatype(key, TYPE_NUMBER)
 	if key<0 or key>31 then SF.Throw("Key must be a int in range 0 - 31") end
-	return Ent_GetDTString(getent(self), key)
+	local ent = getent(self)
+	if is_cloaked_chain(instance, ent) then return nil end
+	return Ent_GetDTString(ent, key)
 end
 
 --- Gets a datatable vector
@@ -2215,7 +2260,9 @@ end
 function ents_methods:getDTVector(key)
 	checkluatype(key, TYPE_NUMBER)
 	if key<0 or key>31 then SF.Throw("Key must be a int in range 0 - 31") end
-	return vwrap(Ent_GetDTVector(getent(self), key))
+	local ent = getent(self)
+	if is_cloaked_chain(instance, ent) then return nil end
+	return vwrap(Ent_GetDTVector(ent, key))
 end
 
 --- Gets a networked variable of an entity
@@ -2224,8 +2271,10 @@ end
 -- @return any The object associated with that key or nil if it's not set
 function ents_methods:getNWVar(key)
 	checkluatype(key, TYPE_STRING)
+	local ent = getent(self)
+	if is_cloaked_chain(instance, ent) then return nil end
 	-- GetNW* returns whatever the key is tied to regardless of the function name
-	local result = Ent_GetNWEntity(getent(self), key)
+	local result = Ent_GetNWEntity(ent, key)
 	if result == NULL then return end
 	return owrap(result)
 end
@@ -2234,7 +2283,9 @@ end
 -- @shared
 -- @return table The table of networked objects
 function ents_methods:getNWVarTable()
-	return instance.Sanitize(Ent_GetNWVarTable(getent(self)))
+	local ent = getent(self)
+	if is_cloaked_chain(instance, ent) then return {} end
+	return instance.Sanitize(Ent_GetNWVarTable(ent))
 end
 
 --- Returns the distance between the center of the entity's bounding box and whichever corner of the bounding box is farthest away.
@@ -2259,7 +2310,9 @@ end
 -- @param Vector The vector to start the intersection from.
 -- @return Vector The nearest hit point of the entity's bounding box in world coordinates, or Vector(0, 0, 0) for some entities such as worldspawn.
 function ents_methods:getNearestPoint(pos)
-	return vwrap(Ent_NearestPoint(getent(self), vunwrap1(pos)))
+	local ent = getent(self)
+	if is_cloaked_chain(instance, ent) then return vwrap(Vector()) end
+	return vwrap(Ent_NearestPoint(ent, vunwrap1(pos)))
 end
 
 --- Returns a table of save values for an entity.
@@ -2268,7 +2321,9 @@ end
 -- @param boolean showAll If set, shows all variables, not just the ones for save.
 -- @return table A table containing all save values in key/value format. The value may be a sequential table (starting to 1) if the field in question is an array in engine.
 function ents_methods:getSaveTable(showAll)
-	return instance.Sanitize(Ent_GetSaveTable(getent(self), showAll and true or false))
+	local ent = getent(self)
+	if is_cloaked_chain(instance, ent) then return {} end
+	return instance.Sanitize(Ent_GetSaveTable(ent, showAll and true or false))
 end
 
 --- Returns a variable from the entity's save table.
@@ -2277,7 +2332,9 @@ end
 -- @return any The internal variable associated with the name.
 function ents_methods:getInternalVariable(variableName)
 	checkluatype(variableName, TYPE_STRING)
-	local result = Ent_GetInternalVariable(getent(self), variableName)
+	local ent = getent(self)
+	if is_cloaked_chain(instance, ent) then return nil end
+	local result = Ent_GetInternalVariable(ent, variableName)
 	return istable(result) and instance.Sanitize(result) or owrap(result)
 end
 
@@ -2293,6 +2350,7 @@ end
 -- @return table? The networked variables table of the entity or nil if it doesn't have one.
 function ents_methods:getNetworkVars()
 	local ent = getent(self)
+	if is_cloaked_chain(instance, ent) then return nil end
 	local ent_tbl = Ent_GetTable(ent)
 	return istable(ent_tbl.dt) and instance.Sanitize(ent_tbl.GetNetworkVars(ent)) or nil
 end

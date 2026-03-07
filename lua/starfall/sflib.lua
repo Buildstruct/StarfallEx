@@ -1974,6 +1974,28 @@ function SF.dumbTrace(entity, pos)
 	return dumbtrace
 end
 
+function SF.SanitizeTraceResult(instance, trace)
+	local BSA = _G.BSA
+	if not trace or not BSA or instance.player == SF.Superuser then return trace end
+
+	local ent = trace.Entity
+	if not (ent and Ent_IsValid(ent) and BSA.Players.IsCloakedFrom(ent, instance.player)) then
+		return trace
+	end
+
+	local sanitized = table.Copy(trace)
+	sanitized.Entity = NULL
+	sanitized.Hit = false
+	sanitized.HitNonWorld = false
+	sanitized.Fraction = 1
+	sanitized.FractionLeftSolid = 0
+	sanitized.HitPos = sanitized.StartPos or Vector(0, 0, 0)
+	sanitized.HitNormal = Vector(0, 0, 0)
+	sanitized.Normal = Vector(0, 0, 0)
+
+	return sanitized
+end
+
 SF.IsHUDActive = SERVER and function(ent, ply)
 	if ply==nil then error("Missing player arg") end
 	local tbl = Ent_GetTable(ent) if tbl==nil then return false end

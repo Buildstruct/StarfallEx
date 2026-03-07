@@ -23,6 +23,7 @@ SF.RegisterType("ParticleEffect", false, false)
 
 return function(instance)
 local checkpermission = instance.player ~= SF.Superuser and SF.Permissions.check or function() end
+local BSA
 
 local particleef_library = instance.Libraries.particleEffect
 local particleef_methods = instance.Types.ParticleEffect.Methods
@@ -59,6 +60,18 @@ local function checkValid(emitter)
 	end
 end
 
+local function is_cloaked_chain(ent)
+	BSA = BSA or _G.BSA
+	if not BSA or instance.player == SF.Superuser then return false end
+
+	while ent and ent:IsValid() do
+		if BSA.Players.IsCloakedFrom(ent, instance.player) then return true end
+		ent = ent:GetParent()
+	end
+
+	return false
+end
+
 
 --- Attaches a particleEffect to an entity.
 -- @param Entity entity Entity to attach to
@@ -74,6 +87,7 @@ function particleef_library.attach(entity, name, pattach, options)
 	checkluatype (options, TYPE_TABLE)
 
 	local entity = getent(entity)
+	if is_cloaked_chain(entity) then SF.Throw("Cannot attach particle effects to a cloaked entity.", 2) end
 
 	if badParticle(name) then
 		SF.Throw("Invalid particle effect path: " .. name, 2)
@@ -192,6 +206,7 @@ function particleef_methods:setControlPointEntity(id,entity)
 	checkluatype (id, TYPE_NUMBER)
 
 	checkValid(uw)
+	if is_cloaked_chain(entity) then SF.Throw("Cannot attach particle effects to a cloaked entity.", 2) end
 
 	uw:SetControlPointEntity(id,entity)
 end

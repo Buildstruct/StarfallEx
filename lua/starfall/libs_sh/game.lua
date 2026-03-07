@@ -214,7 +214,7 @@ if SERVER then
 		if cb then
 			checkluatype(cb, TYPE_FUNCTION)
 			callback = function(attacker, tr, dmginfo)
-				instance:runFunction(cb, instance.WrapObject(attacker), SF.StructWrapper(instance, tr, "TraceResult"))
+				instance:runFunction(cb, instance.WrapObject(attacker), SF.StructWrapper(instance, SF.SanitizeTraceResult(instance, tr), "TraceResult"))
 			end
 		end
 

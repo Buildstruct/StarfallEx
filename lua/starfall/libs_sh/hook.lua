@@ -550,7 +550,7 @@ add("EntityFireBullets", nil, function(instance, ent, data)
 end, function(instance, ret, ent, data)
 	if ret[1] and isfunction(ret[2]) then
 		data.Callback = function(attacker, tr, dmginfo)
-			instance:runFunction(ret[2], instance.WrapObject(attacker), SF.StructWrapper(instance, tr, "TraceResult"))
+			instance:runFunction(ret[2], instance.WrapObject(attacker), SF.StructWrapper(instance, SF.SanitizeTraceResult(instance, tr), "TraceResult"))
 		end
 		return true
 	end
@@ -564,7 +564,7 @@ end, true)
 -- @param table data A table containing Trace (See http://wiki.facepunch.com/gmod/Structures/TraceResult) and AmmoType, Tracer, Damage, Force, Attacker, TracerName (see http://wiki.facepunch.com/gmod/Structures/Bullet)
 add("PostEntityFireBullets", nil, function(instance, ent, data)
 	local ret = SF.StructWrapper(instance, data, "Bullet")
-	ret.Trace = SF.StructWrapper(instance, data.Trace, "TraceResult")
+	ret.Trace = SF.StructWrapper(instance, SF.SanitizeTraceResult(instance, data.Trace), "TraceResult")
 	return true, {instance.WrapObject(ent), ret}
 end)
 

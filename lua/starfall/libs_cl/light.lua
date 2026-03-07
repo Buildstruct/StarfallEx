@@ -94,6 +94,7 @@ SF.RegisterType("ProjectedTexture", true, false)
 
 return function(instance)
 local checkpermission = instance.player ~= SF.Superuser and SF.Permissions.check or function() end
+local BSA
 
 local light_library = instance.Libraries.light
 local light_methods, light_meta, wrap, unwrap = instance.Types.Light.Methods, instance.Types.Light, instance.Types.Light.Wrap, instance.Types.Light.Unwrap
@@ -122,6 +123,18 @@ local vunwrap1
 instance:AddHook("initialize", function()
 	vunwrap1 = vec_meta.QuickUnwrap1
 end)
+
+local function is_cloaked_chain(ent)
+	BSA = BSA or _G.BSA
+	if not BSA or instance.player == SF.Superuser then return false end
+
+	while ent and ent:IsValid() do
+		if BSA.Players.IsCloakedFrom(ent, instance.player) then return true end
+		ent = ent:GetParent()
+	end
+
+	return false
+end
 
 instance.data.light = {lights = lights}
 instance:AddHook("deinitialize", function()
@@ -402,7 +415,9 @@ end
 --- Gets the target entity of the Projected Texture
 -- @return Entity target
 function projectedtexture_methods:getTargetEntity()
-	return ewrap(ptunwrap(self):GetTargetEntity())
+	local ent = ptunwrap(self):GetTargetEntity()
+	if is_cloaked_chain(ent) then return nil end
+	return ewrap(ent)
 end
 
 --- Gets the texture frame of the Projected Texture
@@ -572,7 +587,9 @@ end
 -- Will not take effect until ProjectedTexture:update() is called.
 --@param Entity ent
 function projectedtexture_methods:setTargetEntity(ent)
-	ptunwrap(self):SetTargetEntity(eunwrap(ent))
+	local entity = eunwrap(ent)
+	if is_cloaked_chain(entity) then SF.Throw("Cannot target a cloaked entity.", 2) end
+	ptunwrap(self):SetTargetEntity(entity)
 end
 
 --- Sets the Projected Texture's texture

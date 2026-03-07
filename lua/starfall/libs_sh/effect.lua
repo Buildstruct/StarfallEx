@@ -30,6 +30,7 @@ SF.RegisterType("Effect", true, false)
 return function(instance)
 local checkpermission = instance.player ~= SF.Superuser and SF.Permissions.check or function() end
 local checkvector = SF.CheckVector
+local BSA
 
 local effect_library = instance.Libraries.effect
 local effect_methods, effect_meta, wrap, unwrap = instance.Types.Effect.Methods, instance.Types.Effect, instance.Types.Effect.Wrap, instance.Types.Effect.Unwrap
@@ -46,6 +47,18 @@ instance:AddHook("initialize", function()
 	vunwrap1 = vec_meta.QuickUnwrap1
 	aunwrap1 = ang_meta.QuickUnwrap1
 end)
+
+local function is_cloaked_chain(ent)
+	BSA = BSA or _G.BSA
+	if not BSA or instance.player == SF.Superuser then return false end
+
+	while ent and ent:IsValid() do
+		if BSA.Players.IsCloakedFrom(ent, instance.player) then return true end
+		ent = ent:GetParent()
+	end
+
+	return false
+end
 
 --- Creates an effect data structure
 -- @return Effect Effect Object
@@ -145,7 +158,9 @@ end
 --- Returns the effect's entity
 -- @return Entity The effect's entity
 function effect_methods:getEntity()
-	return ewrap(unwrap(self):GetEntity())
+	local ent = unwrap(self):GetEntity()
+	if is_cloaked_chain(ent) then return nil end
+	return ewrap(ent)
 end
 
 --- Returns the effect's flags
@@ -246,7 +261,9 @@ end
 --- Sets the effect's entity
 -- @param Entity ent The entity
 function effect_methods:setEntity(ent)
-	unwrap(self):SetEntity(getent(ent))
+	local entity = getent(ent)
+	if is_cloaked_chain(entity) then SF.Throw("Cannot attach effects to a cloaked entity.", 2) end
+	unwrap(self):SetEntity(entity)
 end
 
 --- Sets the effect's flags

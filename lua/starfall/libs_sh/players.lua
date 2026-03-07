@@ -252,14 +252,18 @@ end
 -- @shared
 -- @return Weapon The weapon
 function player_methods:getActiveWeapon()
-	return wwrap(Ply_GetActiveWeapon(getply(self)))
+	local e = getply(self)
+	if is_cloak(instance, e) then return nil end
+	return wwrap(Ply_GetActiveWeapon(e))
 end
 
 --- Returns the player's aim vector
 -- @shared
 -- @return Vector Aim vector
 function player_methods:getAimVector()
-	return vwrap(Ply_GetAimVector(getply(self)))
+	local e = getply(self)
+	if is_cloak(instance, e) then return vwrap(Vector()) end
+	return vwrap(Ply_GetAimVector(e))
 end
 
 --- Returns the player's field of view
@@ -280,28 +284,36 @@ end
 -- @shared
 -- @return Entity Entity
 function player_methods:getEntityInUse()
-	return owrap(Ply_GetEntityInUse(getply(self)))
+	local e = getply(self)
+	if is_cloak(instance, e) then return nil end
+	return owrap(Ply_GetEntityInUse(e))
 end
 
 --- Returns the player's shoot position
 -- @shared
 -- @return Vector Shoot position
 function player_methods:getShootPos()
-	return vwrap(Ply_GetShootPos(getply(self)))
+	local e = getply(self)
+	if is_cloak(instance, e) then return vwrap(Vector()) end
+	return vwrap(Ply_GetShootPos(e))
 end
 
 --- Returns whether the player is in a vehicle
 -- @shared
 -- @return boolean True if player in vehicle
 function player_methods:inVehicle()
-	return Ply_InVehicle(getply(self))
+	local e = getply(self)
+	if is_cloak(instance, e) then return false end
+	return Ply_InVehicle(e)
 end
 
 --- Returns the vehicle the player is driving
 -- @shared
 -- @return Vehicle Vehicle if player in vehicle or nil
 function player_methods:getVehicle()
-	return vhwrap(Ply_GetVehicle(getply(self)))
+	local e = getply(self)
+	if is_cloak(instance, e) then return nil end
+	return vhwrap(Ply_GetVehicle(e))
 end
 
 --- Returns whether the player is an admin
@@ -403,14 +415,16 @@ end
 function player_methods:getEyeTrace()
 	local e = getply(self)
 	if is_cloak(instance, e) then return nil end
-	return SF.StructWrapper(instance, Ply_GetEyeTrace(getply(self)), "TraceResult")
+	return SF.StructWrapper(instance, SF.SanitizeTraceResult(instance, Ply_GetEyeTrace(e)), "TraceResult")
 end
 
 --- Returns the player's current view entity
 -- @shared
 -- @return Entity Player's current view entity
 function player_methods:getViewEntity()
-	return owrap(Ply_GetViewEntity(getply(self)))
+	local e = getply(self)
+	if is_cloak(instance, e) then return nil end
+	return owrap(Ply_GetViewEntity(e))
 end
 
 --- Returns the player's view model
@@ -418,7 +432,9 @@ end
 -- @shared
 -- @return Entity Player's view model
 function player_methods:getViewModel()
-	return owrap(Ply_GetViewModel(getply(self), 0))
+	local e = getply(self)
+	if is_cloak(instance, e) then return nil end
+	return owrap(Ply_GetViewModel(e, 0))
 end
 
 --- Returns the camera punch offset angle
@@ -431,7 +447,9 @@ end
 -- @shared
 -- @return table Table of weapons
 function player_methods:getWeapons()
-	return instance.Sanitize(Ply_GetWeapons(getply(self)))
+	local e = getply(self)
+	if is_cloak(instance, e) then return {} end
+	return instance.Sanitize(Ply_GetWeapons(e))
 end
 
 --- Returns the specified weapon or nil if the player doesn't have it
@@ -440,7 +458,9 @@ end
 -- @return Weapon Weapon
 function player_methods:getWeapon(wep)
 	checkluatype(wep, TYPE_STRING)
-	return wwrap(Ply_GetWeapon(getply(self), wep))
+	local e = getply(self)
+	if is_cloak(instance, e) then return nil end
+	return wwrap(Ply_GetWeapon(e, wep))
 end
 
 --- Returns a player's weapon color
@@ -465,7 +485,9 @@ end
 -- @shared
 -- @return Entity Ground entity
 function player_methods:getGroundEntity()
-	return owrap(Ent_GetGroundEntity(getply(self)))
+	local e = getply(self)
+	if is_cloak(instance, e) then return nil end
+	return owrap(Ent_GetGroundEntity(e))
 end
 
 --- Gets the amount of ammo the player has.
@@ -503,7 +525,9 @@ end
 --- Gets the player's death ragdoll
 -- @return Entity? The entity or nil if it doesn't exist
 function player_methods:getDeathRagdoll()
-	return owrap(Ply_GetRagdollEntity(getply(self)))
+	local e = getply(self)
+	if is_cloak(instance, e) then return nil end
+	return owrap(Ply_GetRagdollEntity(e))
 end
 
 --- Returns whether or not the player is pushing the key.

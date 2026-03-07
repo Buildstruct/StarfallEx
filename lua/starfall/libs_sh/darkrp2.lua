@@ -553,7 +553,7 @@ if SERVER then
 		return true, {
 			ply and instance.Types.Player.Wrap(ply) or nil,
 			ent and instance.Types.Entity.Wrap(ent) or nil,
-			trace and SF.StructWrapper(instance, trace, "TraceResult") or nil
+			trace and SF.StructWrapper(instance, SF.SanitizeTraceResult(instance, trace), "TraceResult") or nil
 		}
 	end)
 
