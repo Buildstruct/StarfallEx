@@ -44,7 +44,33 @@ SF.RegisterLibrary("hologram")
 -- @libtbl hologram_methods
 SF.RegisterType("Hologram", true, false, nil, "Entity")
 
+local BSA
+local function is_cloaked_chain(instance, ent)
+	BSA = BSA or _G.BSA
+	if not BSA or instance.player == SF.Superuser then return false end
 
+	while ent and ent:IsValid() do
+		if BSA.Players.IsCloakedFrom(ent, instance.player) then return true end
+		ent = ent:GetParent()
+	end
+
+	return false
+end
+
+local Ent_IsValid = ENT_META.IsValid
+hook.Add("Think", "SF_HoloCloakCheck", function()
+	if not _G.BSA then return end
+	for instance in pairs(SF.allInstances) do
+		for holo in pairs(entList.entsByInstance[instance] or {}) do
+			if Ent_IsValid(holo) then
+				local sfParent = Ent_GetTable(holo).sfParent
+				if sfParent and sfParent.parent and Ent_IsValid(sfParent.parent) and is_cloaked_chain(instance, sfParent.parent) then
+					sfParent:setParent()
+				end
+			end
+		end
+	end
+end)
 
 return function(instance)
 local checkpermission = instance.player ~= SF.Superuser and SF.Permissions.check or function() end
