@@ -951,6 +951,7 @@ end
 -- @return PhysObj The main physics object of the entity
 function ents_methods:getPhysicsObject()
 	local ent = getent(self)
+	if is_cloaked_chain(instance, ent) then return nil end
 	if Ent_IsWorld(ent) then SF.Throw("Cannot get the world physobj.", 2) end
 	return pwrap(Ent_GetPhysicsObject(ent))
 end
@@ -960,7 +961,9 @@ end
 -- @return PhysObj The physics object of the entity
 function ents_methods:getPhysicsObjectNum(id)
 	checkluatype(id, TYPE_NUMBER)
-	return pwrap(Ent_GetPhysicsObjectNum(getent(self), id))
+	local ent = getent(self)
+	if is_cloaked_chain(instance, ent) then return nil end
+	return pwrap(Ent_GetPhysicsObjectNum(ent, id))
 end
 
 --- Returns the elasticity of the entity

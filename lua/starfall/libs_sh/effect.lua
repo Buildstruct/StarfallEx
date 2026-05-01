@@ -128,7 +128,9 @@ end
 --- Returns the effect's angle
 -- @return Angle The effect's angle
 function effect_methods:getAngles()
-	return awrap(unwrap(self):GetAngles())
+	local e = unwrap(self)
+	if is_cloaked_chain(e:GetEntity()) then return awrap(Angle()) end
+	return awrap(e:GetAngles())
 end
 
 --- Returns the effect's attachment
@@ -190,13 +192,17 @@ end
 --- Returns the effect's normal
 -- @return Vector The effect's normal
 function effect_methods:getNormal()
-	return vwrap(unwrap(self):GetNormal())
+	local e = unwrap(self)
+	if is_cloaked_chain(e:GetEntity()) then return vwrap(Vector()) end
+	return vwrap(e:GetNormal())
 end
 
 --- Returns the effect's origin
 -- @return Vector The effect's origin
 function effect_methods:getOrigin()
-	return vwrap(unwrap(self):GetOrigin())
+	local e = unwrap(self)
+	if is_cloaked_chain(e:GetEntity()) then return vwrap(Vector()) end
+	return vwrap(e:GetOrigin())
 end
 
 --- Returns the effect's radius
@@ -214,7 +220,9 @@ end
 --- Returns the effect's start position
 -- @return Vector The effect's start position
 function effect_methods:getStart()
-	return vwrap(unwrap(self):GetStart())
+	local e = unwrap(self)
+	if is_cloaked_chain(e:GetEntity()) then return vwrap(Vector()) end
+	return vwrap(e:GetStart())
 end
 
 --- Returns the effect's surface prop

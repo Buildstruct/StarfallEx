@@ -184,6 +184,14 @@ local function clone(q)
 	return setmetatable({q[1], q[2], q[3], q[4]}, quat_meta)
 end
 
+local BSA
+local function is_cloak(ent)
+	BSA = BSA or _G.BSA
+	if not BSA then return false end
+	if instance.player == SF.Superuser then return false end
+	return BSA.Players.IsCloakedFrom(ent, instance.player)
+end
+
 local getent
 local vunwrap1, vunwrap2
 instance:AddHook("initialize", function()
@@ -845,7 +853,9 @@ end
 --- Converts entity angles to a quaternion
 -- @return Quaternion Constructed quaternion
 function ents_methods:getQuaternion()
-	return wrap(quatFromAngle(getent(self):GetAngles()))
+	local ent = getent(self)
+	if is_cloak(ent) then return wrap({1, 0, 0, 0}) end
+	return wrap(quatFromAngle(ent:GetAngles()))
 end
 
 --- Performs spherical linear interpolation between two quaternions

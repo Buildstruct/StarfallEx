@@ -17,6 +17,14 @@ local Vec_SetUnpacked = VEC_META.SetUnpacked
 local Vec_Unpack = VEC_META.Unpack
 local Ent_GetTable = ENT_META.GetTable
 
+local BSA
+local function is_cloak(instance, self)
+	BSA = BSA or _G.BSA
+	if not BSA then return false end
+	if instance.player == SF.Superuser then return false end
+	return BSA.Players.IsCloakedFrom(self, instance.player)
+end
+
 registerprivilege("render.screen", "Render Screen", "Allows the user to render to a starfall screen", { client = {} })
 registerprivilege("render.offscreen", "Render Screen", "Allows the user to render without a screen", { client = {} })
 registerprivilege("render.renderView", "Render View", "Allows the user to render the world again with custom perspective", { client = {} })
@@ -411,6 +419,7 @@ SF.hookAdd("PostDrawSkyBox", nil, hudPrepareSafeArgs, cleanupRender)
 -- @param number zfar Current far plane of the camera
 -- @return table Table containing information for the camera. {origin=camera origin, angles=camera angles, fov=camera fov, znear=znear, zfar=zfar, drawviewer=drawviewer, ortho=ortho table}
 SF.hookAdd("CalcView", nil, function(instance, ply, pos, ang, fov, znear, zfar)
+	if is_cloak(instance, LocalPlayer()) then return false end
 	return instance.player == SF.Superuser or haspermission(instance, nil, "render.calcview"),
 		{instance.Types.Vector.Wrap(pos), instance.Types.Angle.Wrap(ang), fov, znear, zfar}
 end, function(instance, tbl)
@@ -588,6 +597,7 @@ end
 --- Call EyePos()
 -- @return Vector The origin of the current render context as calculated by calcview.
 function render_library.getEyePos()
+	if is_cloak(instance, LocalPlayer()) then return vwrap(Vector()) end
 	return vwrap(EyePos())
 end
 
@@ -596,12 +606,14 @@ render_library.getOrigin = render_library.getEyePos
 --- Call EyeAngles()
 -- @return Angle The angles of the current render context as calculated by calcview.
 function render_library.getAngles()
+	if is_cloak(instance, LocalPlayer()) then return awrap(Angle()) end
 	return awrap(EyeAngles())
 end
 
 --- Call EyeVector()
 -- @return Vector The normal vector of the current render context as calculated by calcview, similar to render.getAngles.
 function render_library.getEyeVector()
+	if is_cloak(instance, LocalPlayer()) then return vwrap(Vector()) end
 	return vwrap(EyeVector())
 end
 

@@ -90,6 +90,14 @@ local function getveh(self)
 	end
 end
 
+local BSA
+local function is_cloak(ent)
+	BSA = BSA or _G.BSA
+	if not BSA then return false end
+	if instance.player == SF.Superuser then return false end
+	return BSA.Players.IsCloakedFrom(ent, instance.player)
+end
+
 --- Returns the driver of the vehicle
 -- @return Player Driver of vehicle
 function vehicle_methods:getDriver()
@@ -149,7 +157,9 @@ function vehicle_methods:getVehicleViewPosition(role)
 		checkluatype(role, TYPE_NUMBER)
 	end
 
-	local pos, ang, fov = Veh_GetVehicleViewPosition(getveh(self), role)
+	local veh = getveh(self)
+	if is_cloak(veh) then return vwrap(Vector()), awrap(Angle()), 0 end
+	local pos, ang, fov = Veh_GetVehicleViewPosition(veh, role)
 
 	return vwrap(pos), awrap(ang), fov
 end

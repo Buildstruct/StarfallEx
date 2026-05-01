@@ -440,7 +440,9 @@ end
 --- Returns the camera punch offset angle
 -- @return Angle The angle of the view offset
 function player_methods:getViewPunchAngles()
-	return awrap(Ply_GetViewPunchAngles(getply(self)))
+	local e = getply(self)
+	if is_cloak(instance, e) then return awrap(Angle()) end
+	return awrap(Ply_GetViewPunchAngles(e))
 end
 
 --- Returns a table of weapons the player is carrying

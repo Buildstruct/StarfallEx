@@ -67,6 +67,14 @@ local ang_meta, awrap, aunwrap = instance.Types.Angle, instance.Types.Angle.Wrap
 local vec_meta, vwrap, vunwrap = instance.Types.Vector, instance.Types.Vector.Wrap, instance.Types.Vector.Unwrap
 local plywrap = instance.Types.Player.Wrap
 
+local BSA
+local function is_cloak_lp()
+	BSA = BSA or _G.BSA
+	if not BSA then return false end
+	if instance.player == SF.Superuser then return false end
+	return BSA.Players.IsCloakedFrom(LocalPlayer(), instance.player)
+end
+
 local getply
 instance:AddHook("initialize", function()
 	getply = instance.Types.Player.GetPlayer
@@ -268,6 +276,7 @@ if CLIENT then
 	-- @return Vector Position
 	-- @client
 	function vr_library.getOriginPos()
+		if is_cloak_lp() then return vwrap(Vector()) end
 		return vwrap(vrmod.GetOriginPos())
 	end
 
@@ -275,6 +284,7 @@ if CLIENT then
 	-- @return Angle Angles
 	-- @client
 	function vr_library.getOriginAng()
+		if is_cloak_lp() then return awrap(Angle()) end
 		return awrap(vrmod.GetOriginAng())
 	end
 
@@ -283,6 +293,7 @@ if CLIENT then
 	-- @return Angle Angles
 	-- @client
 	function vr_library.getOrigin()
+		if is_cloak_lp() then return vwrap(Vector()), awrap(Angle()) end
 		local pos, ang = vrmod.GetOrigin()
 		return vwrap(pos), awrap(ang)
 	end
@@ -293,6 +304,7 @@ if CLIENT then
 	-- @return Vector Position
 	-- @client
 	function vr_library.getEyePos()
+		if is_cloak_lp() then return vwrap(Vector()) end
 		return vwrap(vrmod.GetEyePos())
 	end
 
@@ -300,6 +312,7 @@ if CLIENT then
 	-- @return Vector Position
 	-- @client
 	function vr_library.getLeftEyePos()
+		if is_cloak_lp() then return vwrap(Vector()) end
 		return vwrap(vrmod.GetLeftEyePos())
 	end
 
@@ -307,6 +320,7 @@ if CLIENT then
 	-- @return Vector Position
 	-- @client
 	function vr_library.getRightEyePos()
+		if is_cloak_lp() then return vwrap(Vector()) end
 		return vwrap(vrmod.GetRightEyePos())
 	end
 end

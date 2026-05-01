@@ -15,6 +15,14 @@ end
 
 local add = SF.hookAdd
 
+local BSA
+local function is_cloak(instance, ent)
+	BSA = BSA or _G.BSA
+	if not BSA then return false end
+	if instance.player == SF.Superuser then return false end
+	return BSA.Players.IsCloakedFrom(ent, instance.player)
+end
+
 if SERVER then
 	-- Server hooks
 
@@ -221,6 +229,7 @@ if SERVER then
 	-- @param Vector force Force of the damage
 	-- @return boolean? Return true to prevent the entity from taking damage
 	add("EntityTakeDamage", nil, function(instance, target, dmg)
+		if is_cloak(instance, target) or is_cloak(instance, dmg:GetAttacker()) then return false end
 		return true, {
 			instance.WrapObject(target),
 			instance.WrapObject(dmg:GetAttacker()),
@@ -249,6 +258,7 @@ if SERVER then
 	-- @param Vector force Force of the damage
 	-- @param boolean took Whether the entity actually received the damage or not
 	add("PostEntityTakeDamage", nil, function(instance, target, dmg, took)
+		if is_cloak(instance, target) or is_cloak(instance, dmg:GetAttacker()) then return false end
 		return true, {
 			instance.WrapObject(target),
 			instance.WrapObject(dmg:GetAttacker()),
@@ -412,6 +422,7 @@ add("PlayerNoClip")
 -- @param number volume Volume of the footstep
 -- @return boolean? Return true to prevent default step sound (only on chip owner)
 add("PlayerFootstep", nil, function(instance, ply, pos, foot, sound, volume)
+	if is_cloak(instance, ply) then return false end
     return true, {
         instance.WrapObject(ply),
         instance.Types.Vector.Wrap(pos),
@@ -546,6 +557,7 @@ add("PropBreak")
 -- @param table data The bullet data. See http://wiki.facepunch.com/gmod/Structures/Bullet
 -- @return function? Optional callback to called as if it were the Bullet structure's Callback. Called before the bullet deals damage with attacker, traceResult.
 add("EntityFireBullets", nil, function(instance, ent, data)
+	if is_cloak(instance, ent) then return false end
 	return true, { instance.WrapObject(ent), SF.StructWrapper(instance, data, "Bullet") }
 end, function(instance, ret, ent, data)
 	if ret[1] and isfunction(ret[2]) then
@@ -563,6 +575,7 @@ end, true)
 -- @param Entity ent The entity that fired the bullet
 -- @param table data A table containing Trace (See http://wiki.facepunch.com/gmod/Structures/TraceResult) and AmmoType, Tracer, Damage, Force, Attacker, TracerName (see http://wiki.facepunch.com/gmod/Structures/Bullet)
 add("PostEntityFireBullets", nil, function(instance, ent, data)
+	if is_cloak(instance, ent) then return false end
 	local ret = SF.StructWrapper(instance, data, "Bullet")
 	ret.Trace = SF.StructWrapper(instance, SF.SanitizeTraceResult(instance, data.Trace), "TraceResult")
 	return true, {instance.WrapObject(ent), ret}
@@ -575,6 +588,7 @@ end)
 -- @param table data Information about the played sound. Changes done to this table can be applied by returning true from this hook. See https://wiki.facepunch.com/gmod/Structures/EmitSoundInfo.
 -- @return boolean? Return false to prevent the sound from playing or nothing to play the sound without altering it.
 add("EntityEmitSound", nil, function(instance, data)
+	if is_cloak(instance, data.Entity) then return false end
 	return true, {SF.StructWrapper(instance, data, "EmitSoundInfo")}
 end, function(instance, ret, data)
 	if ret[1] and ret[2]==false and (instance.player == SF.Superuser or haspermission(instance, data.Entity, "entities.emitSound")) then
