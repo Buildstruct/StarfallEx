@@ -26,8 +26,8 @@ else
 	SF.AllowSuperUser = CreateConVar("sf_superuserallowed", 0, {FCVAR_ARCHIVE, FCVAR_REPLICATED}, "Whether the starfall superuser feature is allowed")
 	SF.CvarEnabled = CreateConVar( "sf_enabled_cl", "1", { FCVAR_ARCHIVE, FCVAR_USERINFO, FCVAR_DONTRECORD }, "Enable clientside starfall" )
 end
-local ramlimit = SF.RamCap:GetInt()
-cvars.AddChangeCallback(SF.RamCap:GetName(), function() ramlimit = SF.RamCap:GetInt() end)
+local ramlimit
+SF.CvarCallback(SF.RamCap, function(val) ramlimit = val end, "number")
 
 SF.Instance = {}
 SF.Instance.__index = SF.Instance
@@ -182,18 +182,63 @@ function SF.RegisterType(name, weakwrapper, weaksensitive, target_metatable, sup
 	}
 end
 
+-- Cleanup wrapped entity when it's removed
+SF.WrappedEntities = SF.EntityTable("SFWrappedEnts", function(ent)
+	for inst in pairs(SF.allInstances) do
+		for _, meta in ipairs(inst.entityMetas) do
+			local wrap = meta.sensitive2sf[ent]
+			if wrap then
+				meta.sensitive2sf[ent] = nil
+				meta.sf2sensitive[wrap] = nil
+			end
+		end
+	end
+end)
+
 function SF.Instance:CreateWrapper(metatable, typedata)
 	
 	local wrap, unwrap
-	-- If the type already has wrappers, dont re-assign
-	if typedata.weakwrapper==nil or typedata.weaksensitive==nil then
-		if typedata.customwrappers then
-			wrap, unwrap = typedata.customwrappers(self.CheckType, metatable)
+
+	-- Create wrapper based on what type of weakness specified
+	if typedata.customwrappers then
+		wrap, unwrap = typedata.customwrappers(self.CheckType, metatable)
+	elseif typedata.weakwrapper=="entity" then
+		table.insert(self.entityMetas, metatable)
+		-- Entities GC when engine entity removed
+		local sf2sensitive, sensitive2sf = {}, {}
+		metatable.sensitive2sf = sensitive2sf
+		metatable.sf2sensitive = sf2sensitive
+
+		if metatable.supertype then
+			local supersensitive2sf = metatable.supertype.sensitive2sf
+			local supersf2sensitive = metatable.supertype.sf2sensitive
+			function wrap(value)
+				if value == nil then return nil end
+				if sensitive2sf[value] then return sensitive2sf[value] end
+				SF.WrappedEntities[value] = true
+				local tbl = setmetatable({}, metatable)
+				sensitive2sf[value] = tbl
+				sf2sensitive[tbl] = value
+				supersensitive2sf[value] = tbl
+				supersf2sensitive[tbl] = value
+				return tbl
+			end
 		else
-			return true
+			function wrap(value)
+				if value == nil then return nil end
+				if sensitive2sf[value] then return sensitive2sf[value] end
+				SF.WrappedEntities[value] = true
+				local tbl = setmetatable({}, metatable)
+				sensitive2sf[value] = tbl
+				sf2sensitive[tbl] = value
+				return tbl
+			end
+		end
+		function unwrap(value)
+			local ret = sf2sensitive[value]
+			return ret or self.CheckType(value, metatable, 2) or SF.Throw("Object no longer valid", 3)
 		end
 	else
-
 		local sf2sensitive = setmetatable({}, { __mode = (typedata.weakwrapper and "k" or "") .. (typedata.weaksensitive and "v" or "") })
 		local sensitive2sf = setmetatable({}, { __mode = (typedata.weaksensitive and "k" or "") .. (typedata.weakwrapper and "v" or "") })
 		metatable.sensitive2sf = sensitive2sf
@@ -202,9 +247,6 @@ function SF.Instance:CreateWrapper(metatable, typedata)
 		if metatable.supertype then
 			local supersensitive2sf = metatable.supertype.sensitive2sf
 			local supersf2sensitive = metatable.supertype.sf2sensitive
-
-			if not supersensitive2sf then return false end --Need to try again since baseclass hasn't been created yet
-
 			function wrap(value)
 				if value == nil then return nil end
 				if sensitive2sf[value] then return sensitive2sf[value] end
@@ -238,13 +280,13 @@ function SF.Instance:CreateWrapper(metatable, typedata)
 
 	metatable.Wrap = wrap
 	metatable.Unwrap = unwrap
-	return true
 end
 
 function SF.Instance:BuildEnvironment()
 	self.Libraries = {}
 	self.Types = {}
 	self.env = {}
+	self.entityMetas = {}
 
 	local object_wrappers = {}
 	local object_unwrappers = {}
@@ -380,10 +422,11 @@ function SF.Instance:BuildEnvironment()
 		local numCreated = 0
 		local newTypesToCreate = {}
 		for name, meta in pairs(typesToCreate) do
-			if self:CreateWrapper(meta, SF.Types[name]) then
-				numCreated = numCreated + 1
-			else
+			if meta.supertype and meta.supertype.Wrap==nil then
 				newTypesToCreate[name] = meta
+			else
+				self:CreateWrapper(meta, SF.Types[name])
+				numCreated = numCreated + 1
 			end
 		end
 		if next(newTypesToCreate)==nil then break end
@@ -594,10 +637,8 @@ function SF.Instance:runExternal(func, ...)
 	return ok, err
 end
 
-local function xpcall_callback(err)
-	if dgetmeta(err)~=SF.Errormeta then
-		return SF.MakeError(err, 1)
-	end
+local function makeError(err)
+	if dgetmeta(err)~=SF.Errormeta then err = SF.MakeError(err, 1) end
 	return err
 end
 
@@ -610,7 +651,7 @@ function SF.Instance:runWithOps(func, ...)
 
 	self.stackn = self.stackn + 1
 	self:pushCpuCheck(self.checkCpuHook)
-	local tbl = { xpcall(func, xpcall_callback, ...) }
+	local tbl = { xpcall(func, makeError, ...) }
 	self:popCpuCheck()
 	self.stackn = self.stackn - 1
 
@@ -623,7 +664,7 @@ function SF.Instance:runWithOps(func, ...)
 end
 
 function SF.Instance:runWithoutOps(func, ...)
-	return { xpcall(func, xpcall_callback, ...) }
+	return { xpcall(func, makeError, ...) }
 end
 
 function SF.Instance:initialize()
@@ -637,8 +678,9 @@ function SF.Instance:initialize()
 	if func then
 		local tbl = self:run(func)
 		if not tbl[1] then
-			self:Error(tbl[2])
-			return false, tbl[2]
+			local err = makeError(tbl[2])
+			self:Error(err)
+			return false, err
 		end
 	end
 
@@ -652,8 +694,9 @@ function SF.Instance:runScriptHook(hook, ...)
 	for name, func in hooks:pairs() do
 		tbl = self:run(func, ...)
 		if not tbl[1] then
-			tbl[2].message = "Hook '" .. hook .. "' errored with: " .. tostring(tbl[2].message)
-			self:Error(tbl[2])
+			local err = makeError(tbl[2])
+			err.message = "Hook '" .. hook .. "' errored with: " .. tostring(err.message)
+			self:Error(err)
 			return tbl
 		end
 	end
@@ -671,8 +714,9 @@ function SF.Instance:runScriptHookForResult(hook, ...)
 				break
 			end
 		else
-			tbl[2].message = "Hook '" .. hook .. "' errored with: " .. tostring(tbl[2].message)
-			self:Error(tbl[2])
+			local err = makeError(tbl[2])
+			err.message = "Hook '" .. hook .. "' errored with: " .. tostring(err.message)
+			self:Error(err)
 			return tbl
 		end
 	end
@@ -682,8 +726,9 @@ end
 function SF.Instance:runFunction(func, ...)
 	local tbl = self:run(func, ...)
 	if not tbl[1] then
-		tbl[2].message = "Callback errored with: " .. tostring(tbl[2].message)
-		self:Error(tbl[2])
+		local err = makeError(tbl[2])
+		err.message = "Callback errored with: " .. tostring(err.message)
+		self:Error(err)
 	end
 
 	return tbl

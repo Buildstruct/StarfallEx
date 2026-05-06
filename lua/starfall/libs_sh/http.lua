@@ -5,6 +5,7 @@ local registerprivilege = SF.Permissions.registerPrivilege
 local permission_level = SERVER and 1 or 3
 registerprivilege("http.get", "HTTP Get method", "Allows the user to request html data", { client = {}, urlwhitelist = { default = permission_level } })
 registerprivilege("http.post", "HTTP Post method", "Allows the user to post html data", { client = { default = 1 }, urlwhitelist = { default = permission_level } })
+registerprivilege("http.request", "HTTP Request method", "Allows the user to send HTTP requests of any type", { client = { default = 1 }, urlwhitelist = { default = permission_level } })
 
 local requests = SF.LimitObject("http_requests", "http request", 3, "The number of concurrent http requests via Starfall")
 
@@ -14,6 +15,12 @@ local requests = SF.LimitObject("http_requests", "http request", 3, "The number 
 -- @libtbl http_library
 SF.RegisterLibrary("http")
 
+local headerWhitelist = SF.StringRestrictor(false)
+-- Feel free to pull-request if you need something
+for _, v in ipairs{"accept", "accept-language", "accept-encoding", "content-type", "content-length"} do
+	headerWhitelist:addWhitelistEntry(v)
+end
+
 return function(instance)
 local checkpermission = instance.player ~= SF.Superuser and SF.Permissions.check or function() end
 
@@ -21,10 +28,15 @@ local http_library = instance.Libraries.http
 
 -- Runs the appropriate callback after a http request
 local function runCallback(callback)
-	return function(...)
+	return function(a, b, c, d)
 		requests:free(instance.player, 1)
 		if callback then
-			instance:runFunction(callback, ...)
+			if istable(c) then
+				local newc = {}
+				for k, v in pairs(c) do if headerWhitelist:check(string.lower(k)) then newc[k]=v end end
+				c = newc
+			end
+			instance:runFunction(callback, a, b, c, d)
 		end
 	end
 end
@@ -63,6 +75,9 @@ function http_library.get(url, callbackSuccess, callbackFail, headers)
 		for k, v in pairs(headers) do
 			if not isstring(k) or not isstring(v) then
 				SF.Throw("Headers can only contain string keys and string values", 2)
+			end
+			if not headerWhitelist:check(string.lower(k)) then
+				SF.Throw("Header "..k.." is not whitelisted!", 2)
 			end
 		end
 	end
@@ -114,7 +129,12 @@ function http_library.post(url, payload, callbackSuccess, callbackFail, headers)
 				SF.Throw("Headers can only contain string keys and string values", 2)
 			end
 
-			if string.lower(k) == "content-type" then
+			local k_low = string.lower(k)
+			if not headerWhitelist:check(k_low) then
+				SF.Throw("Header "..k.." is not whitelisted!", 2)
+			end
+
+			if k_low == "content-type" then
 				request.type = v
 				headers[k] = nil
 			end
@@ -135,6 +155,104 @@ function http_library.post(url, payload, callbackSuccess, callbackFail, headers)
 	requests:use(instance.player, 1)
 
 	if CLIENT then SF.HTTPNotify(instance.player, url) end
+	HTTP(request)
+end
+
+local VALID_METHODS = {
+	GET = true,
+	POST = true,
+	HEAD = true,
+	PUT = true,
+	DELETE = true,
+	PATCH = true,
+	OPTIONS = true
+}
+
+--- Runs a new http request. Wraps HTTP() directly. Official documentation for each parameter can be found here: https://wiki.facepunch.com/gmod/Structures/HTTPRequest
+-- @param string url The target url
+-- @param string method Request method, case insensitive. Possible values are: GET, POST, HEAD, PUT, DELETE, PATCH, OPTIONS
+-- @param function? success Function to be called on success, taking arguments code (number), body (string), and headers (table)
+-- @param function? failed Function to be called on failure, taking argument reason (string)
+-- @param string? body Body string for POST data. If set, will override parameters
+-- @param table? parameters KeyValue table for URL parameters. This is only applicable to the following request methods: GET, POST (sent in body, so if body is set, parameters are ignored), and HEAD
+-- @param string? type Content type for body. (Default: "text/plain; charset=utf-8")
+-- @param table? headers KeyValue table for headers
+-- @param number? timeout The timeout for the connection. Clamped between [0.1, 300]. (Default: 60)
+function http_library.request(url, method, success, failed, body, parameters, type, headers, timeout)
+	checkluatype(url, TYPE_STRING)
+	checkpermission(instance, url, "http.request")
+
+	checkluatype(method, TYPE_STRING)
+
+	if not VALID_METHODS[method] then
+		SF.Throw("Invalid http method", 2)
+	end
+
+	local request = {
+		url = url,
+		method = method
+	}
+
+	if type ~= nil then
+		checkluatype(type, TYPE_STRING)
+		request.type = type
+	end
+
+	if timeout ~= nil then
+		checkluatype(timeout, TYPE_NUMBER)
+		request.timeout = math.Clamp(timeout, 0.1, 300)
+	end
+
+	if body ~= nil then
+		checkluatype(body, TYPE_STRING)
+		request.body = body
+	end
+
+	if parameters ~= nil then
+		checkluatype(parameters, TYPE_TABLE)
+		request.parameters = {}
+
+		for k, v in pairs(parameters) do
+			if not isstring(k) or not isstring(v) then
+				SF.Throw("Request parameters can only contain string keys and string values", 2)
+			end
+			request.parameters[k] = v
+		end
+	end
+
+	if headers ~= nil then
+		checkluatype(headers, TYPE_TABLE)
+		request.headers = {}
+
+		for k, v in pairs(headers) do
+			if not isstring(k) or not isstring(v) then
+				SF.Throw("Headers can only contain string keys and string values", 2)
+			end
+
+			local k_low = string.lower(k)
+			if not headerWhitelist:check(k_low) then
+				SF.Throw("Header "..k.." is not whitelisted!", 2)
+			end
+
+			if k_low == "content-type" then
+				if request.type == nil then
+					request.type = v
+				end
+			else
+				request.headers[k] = v
+			end
+		end
+	end
+
+	if success ~= nil then checkluatype(success, TYPE_FUNCTION) end
+	if failed ~= nil then checkluatype(failed, TYPE_FUNCTION) end
+
+	request.success = runCallback(success)
+	request.failed = runCallback(failed)
+
+	requests:use(instance.player, 1)
+
+	if CLIENT then SF.HTTPNotify(instance.player, request.url) end
 	HTTP(request)
 end
 
