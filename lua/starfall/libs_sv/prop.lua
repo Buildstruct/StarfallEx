@@ -451,9 +451,10 @@ function props_library.createSent(pos, ang, class, frozen, data)
 		end
 
 		entOk, entErr = instance:runExternal(function()
-			local spawn_function = scripted_ents.GetMember(class, "SpawnFunction")
-			if spawn_function then
-				entity = spawn_function( scripted_ents.GetStored(class).t, ply, SF.dumbTrace(NULL, pos), class )
+			local classTbl = scripted_ents.GetStored( class )
+			local SpawnFunction = scripted_ents.GetMember(class, "SpawnFunction")
+			if classTbl and SpawnFunction then
+				entity = SpawnFunction( classTbl.t, ply, SF.dumbTrace(NULL, pos), class )
 			else
 				entity = ents.Create( class )
 				if Ent_IsValid(entity) then
@@ -471,7 +472,6 @@ function props_library.createSent(pos, ang, class, frozen, data)
 			if scripted_ents.GetMember(class, "AdminOnly") and not ply:IsAdmin() then SF.Throw("This npc is admin only!", 2) end
 			if gamemode.Call("PlayerSpawnNPC", ply, class, "") == false then SF.Throw("Another hook prevented the npc from spawning", 2) end
 		end
-
 
 		entOk, entErr = instance:runExternal(function()
 			entity = ents.Create(npc.Class)
@@ -550,8 +550,8 @@ function props_library.createSent(pos, ang, class, frozen, data)
 
 		hookcall = "PlayerSpawnedVehicle"
 	elseif sent2 then
-		if not scripted_ents.GetStored(class) then SF.Throw("This entity doesn't exist!", 2) end
-
+		local classTbl = scripted_ents.GetStored(class)
+		if not classTbl then SF.Throw("This entity doesn't exist!", 2) end
 		if ply ~= SF.Superuser then
 			if scripted_ents.GetMember(class, "AdminOnly") and not ply:IsAdmin() then SF.Throw("This sent is admin only!", 2) end
 			if gamemode.Call("PlayerSpawnSENT", ply, class) == false then SF.Throw("Another hook prevented the sent from spawning", 2) end

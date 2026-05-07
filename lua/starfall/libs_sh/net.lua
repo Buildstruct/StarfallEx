@@ -10,19 +10,16 @@ local StreamManager = {
 			local active = table.Count(self.writeStreams)+table.Count(self.placeholders)
 			return active<16, active
 		end,
-		addWriteStream = function(self, instance, str, nocompress)
-			local placeholder = {placeholder = true}
-			self.placeholders[placeholder] = {instance}
-
-			return function()
+		addWriteStream = function(self, instance)
+			local placeholder = {}
+			local data = {instance}
+			self.placeholders[placeholder] = data
+			return function(stream)
 				if self.placeholders[placeholder] then
-					local stream = net.WriteStream(str, function() end, nocompress)
-					if stream then
-						self.writeStreams[stream] = self.placeholders[placeholder]
-					end
 					self.placeholders[placeholder] = nil
+					self.writeStreams[stream] = data
 				else
-					net.WriteUInt(0, 32)
+					stream:Remove()
 				end
 			end
 		end,
@@ -33,15 +30,7 @@ local StreamManager = {
 				end
 			end
 		end,
-		cleanupPlaceholders = function(self, instance)
-			for stream, data in pairs(self.placeholders) do
-				if data[1]==instance then
-					self.writeStreams[stream] = nil
-				end
-			end
-		end,
 		isWriting = function(self)
-			self:cleanupWriteStreams()
 			return not (table.IsEmpty(self.writeStreams) and table.IsEmpty(self.placeholders))
 		end,
 		canReadStream = function(self)
@@ -83,11 +72,19 @@ local StreamManager = {
 			readStream = false
 		}, t)
 	end,
-	plyStreams = SF.EntityTable("playerStreams")
+	plyStreams = SF.EntityTable("playerStreams"),
+	clearPlaceholders = function(self, instance)
+		for k, v in pairs(self.plyStreams) do
+			for stream, data in pairs(v.placeholders) do
+				if data[1]==instance then
+					v.placeholders[stream] = nil
+				end
+			end
+		end
+	end
 }
 setmetatable(StreamManager, StreamManager)
 getmetatable(StreamManager.plyStreams).__index = function(t, k) local r=StreamManager(k) t[k] = r return r end
-SF.StreamManager = StreamManager
 
 local netBurst = SF.BurstObject("net", "net message", 5, 10, "Regen rate of net message burst in kB/sec.", "The net message burst limit in kB.", 1000 * 8)
 SF.NetBurst = netBurst
@@ -159,7 +156,7 @@ local function net_reset()
 	netSize = 0
 	netData = {}
 	netStarted = false
-	plyStreams:cleanupPlaceholders(instance)
+	StreamManager:clearPlaceholders(instance)
 end
 
 local function net_write(unreliable)
@@ -181,7 +178,7 @@ function net_library.start(name)
 	netStarted = true
 	netSize = 8*8 -- 8 byte overhead
 	netData = {}
-	plyStreams:cleanupPlaceholders(instance)
+	StreamManager:clearPlaceholders(instance)
 
 	write{net.WriteString, (#name + 1) * 8, name} -- Include null character
 end
@@ -336,7 +333,11 @@ function net_library.writeStream(str, compress)
 	if #str > 64e6 then SF.Throw("String is too long!", 2) end
 
 	if not plyStreams:canWriteStream() then SF.Throw("Too many active writeStreams!", 2) end
-	write{plyStreams:addWriteStream(instance, str, compress == false), 8*8}
+	local writePending = plyStreams:addWriteStream(instance)
+	local function writeStreamFunc()
+		writePending(net.WriteStream(str, function() end, compress == false))
+	end
+	write{writeStreamFunc, 8*8}
 end
 
 --- Reads a large string stream from the net message.

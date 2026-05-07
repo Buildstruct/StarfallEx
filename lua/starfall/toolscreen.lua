@@ -8,8 +8,10 @@ local math_normalize_angle = math.NormalizeAngle
 surface.CreateFont("StarfallToolBig", { font = "Roboto-Bold.ttf", size = 36 })
 surface.CreateFont("StarfallToolSmall", { font = "Roboto-Italic.ttf", size = 32, shadow = true })
 
-local simulation_fps
-SF.CvarCallback(CreateClientConVar("starfall_toolscreen_fps", "120", true, false, "Maximum FPS of the stars animation", 30, 300), function(val) simulation_fps = val end, "number")
+local simulation_fps = CreateClientConVar("starfall_toolscreen_fps", "120", true, false, "Maximum FPS of the stars animation", 30, 300):GetInt()
+cvars.AddChangeCallback("starfall_toolscreen_fps", function(_, _, value)
+	simulation_fps = tonumber(value) or 120
+end)
 
 -- Tuning vars
 local color_background       = Color(41, 38, 52)                  -- Background color
@@ -193,4 +195,7 @@ local function toggle_toolscreen(enabled)
 		end
 	end
 end
-SF.CvarCallback(CreateClientConVar("starfall_toolscreen", "1", true, false, "Enable Starfall custom toolgun screen animation", 0, 1), function(val) toggle_toolscreen(val) end, "boolean", true)
+CreateClientConVar("starfall_toolscreen", "1", true, false, "Enable Starfall custom toolgun screen animation", 0, 1)
+cvars.AddChangeCallback("starfall_toolscreen", function(_, _, value)
+	toggle_toolscreen(value == "1")
+end)

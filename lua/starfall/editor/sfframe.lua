@@ -106,7 +106,7 @@ function SF.DefaultCode()
 end
 
 cvars.AddChangeCallback("sf_editor_layout", function()
-	timer.Simple(0, function() RunConsoleCommand("sf_editor_restart") end)
+	RunConsoleCommand("sf_editor_restart")
 end)
 
 Editor.CreatedFonts = {}
@@ -176,8 +176,11 @@ function Editor:Init()
 	self.Components = {}
 
 	-- Controls the auto reload functionality
-	SF.CvarCallback(Editor.EditorFileAutoReloadInterval, function(val) self:setFileAutoReloadInterval(val) end, "number")
-	SF.CvarCallback(Editor.EditorFileAutoReload, function(val) self:setFileAutoReload(val) end, "boolean")
+	self.autoReloadEnabled = Editor.EditorFileAutoReload:GetBool()
+	self.autoReloadInterval = Editor.EditorFileAutoReloadInterval:GetFloat()
+	cvars.AddChangeCallback(Editor.EditorFileAutoReload:GetName(), function() self:setFileAutoReload(Editor.EditorFileAutoReload:GetBool()) end)
+	cvars.AddChangeCallback(Editor.EditorFileAutoReloadInterval:GetName(), function() self:setFileAutoReloadInterval(Editor.EditorFileAutoReloadInterval:GetFloat()) end)
+
 
 	-- Load border colors, position, & size
 	self:LoadEditorSettings()
@@ -201,6 +204,11 @@ function Editor:Init()
 	self:SetV(false)
 
 	self:InitShutdownHook()
+
+	-- This should create the timers
+	if self.EditorFileAutoReload then
+		self:setFileAutoReload(true)
+	end
 end
 
 local size = CreateClientConVar("sf_editor_size", "800_600", true, false)

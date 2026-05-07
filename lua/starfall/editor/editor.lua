@@ -108,8 +108,11 @@ if CLIENT then
 		return path
 	end
 
+	--- Converts given text to LF and tabs to spaces.
+	-- Every code which goes into the editor is normalized first.
+	-- Note: remember to normalize every input file when comparing it to already open files to avoid inconsistencies.
 	function SF.Editor.normalizeCode(code)
-		return (string.gsub(code, "\r", ""))
+		return string.gsub(code, "[\r\t]", {["\r"]="", ["\t"]="    "})
 	end
 
 	function SF.Editor.renameFile(oldFile, newFile)
@@ -663,10 +666,9 @@ if CLIENT then
 		if ok then
 			SF.Docs = docs
 			SF.DocsData = nil
-
-			for k, v in pairs(SF.Editor.TabHandlers) do
-				if v.DocsFinished then v:DocsFinished() end
-			end
+			-- reinitialize tabhandler to regenerate libmap
+			SF.Editor.TabHandlers.wire:Init()
+			SF.Editor.TabHandlers.helper:RefreshHelper()
 			-- clear cache to redraw text
 			SF.Editor.editor:OnThemeChange(SF.Editor.Themes.CurrentTheme)
 		else

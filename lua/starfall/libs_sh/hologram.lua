@@ -96,10 +96,10 @@ instance:AddHook("initialize", function()
 end)
 
 instance:AddHook("deinitialize", function()
-	if SERVER then
+	if SERVER or not instance.data.render.isRendering then
 		entList:deinitialize(instance, true)
 	else
-		-- Removing hologram in render hook = lua error
+		-- Removing hologram in render hook = crash
 		timer.Simple(0, function()
 			entList:deinitialize(instance, true)
 		end)
