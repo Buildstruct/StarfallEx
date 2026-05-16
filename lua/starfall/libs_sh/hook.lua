@@ -32,7 +32,10 @@ if SERVER then
 	-- @server
 	-- @param Player ply Player picking up an object
 	-- @param Entity ent Entity being picked up
-	add("GravGunOnPickedUp")
+	add("GravGunOnPickedUp", nil, function(instance, ply, ent)
+		if is_cloak(instance, ply) then return false end
+		return true, {instance.WrapObject(ply), instance.WrapObject(ent)}
+	end)
 
 	--- Called when an entity is being dropped by a gravity gun
 	-- @name GravGunOnDropped
@@ -40,7 +43,10 @@ if SERVER then
 	-- @server
 	-- @param Player ply Player dropping the object
 	-- @param Entity ent Entity being dropped
-	add("GravGunOnDropped")
+	add("GravGunOnDropped", nil, function(instance, ply, ent)
+		if is_cloak(instance, ply) then return false end
+		return true, {instance.WrapObject(ply), instance.WrapObject(ent)}
+	end)
 
 	--- Called when an entity is being picked up by +use
 	-- @name OnPlayerPhysicsPickup
@@ -48,7 +54,10 @@ if SERVER then
 	-- @server
 	-- @param Player ply Player picking up an object
 	-- @param Entity ent Entity being picked up
-	add("OnPlayerPhysicsPickup")
+	add("OnPlayerPhysicsPickup", nil, function(instance, ply, ent)
+		if is_cloak(instance, ply) then return false end
+		return true, {instance.WrapObject(ply), instance.WrapObject(ent)}
+	end)
 
 	--- Called when an entity is being dropped or thrown by +use
 	-- @name OnPlayerPhysicsDrop
@@ -57,7 +66,10 @@ if SERVER then
 	-- @param Player ply Player dropping the object
 	-- @param Entity ent Entity being dropped
 	-- @param boolean thrown Whether the entity was thrown or dropped
-	add("OnPlayerPhysicsDrop")
+	add("OnPlayerPhysicsDrop", nil, function(instance, ply, ent, thrown)
+		if is_cloak(instance, ply) then return false end
+		return true, {instance.WrapObject(ply), instance.WrapObject(ent), thrown}
+	end)
 
 	--- Called when an entity is being frozen
 	-- Note this is not called for players or NPCs held with the physgun (bug)
@@ -68,7 +80,10 @@ if SERVER then
 	-- @param PhysObj physobj PhysObj of the entity
 	-- @param Entity ent Entity being frozen
 	-- @param Player ply Player freezing the entity
-	add("OnPhysgunFreeze")
+	add("OnPhysgunFreeze", nil, function(instance, physgun, physobj, ent, ply)
+		if is_cloak(instance, ply) then return false end
+		return true, {instance.WrapObject(physgun), instance.WrapObject(physobj), instance.WrapObject(ent), instance.WrapObject(ply)}
+	end)
 
 	--- Called when a player reloads their physgun
 	-- @name OnPhysgunReload
@@ -85,7 +100,10 @@ if SERVER then
 	-- @server
 	-- @param Player ply The player that has picked up something using the physics gun.
 	-- @param Entity ent The entity that was picked up
-	add("OnPhysgunPickup")
+	add("OnPhysgunPickup", nil, function(instance, ply, ent)
+		if is_cloak(instance, ply) then return false end
+		return true, {instance.WrapObject(ply), instance.WrapObject(ent)}
+	end)
 
 	--- Called when a player unfreezes an object
 	-- @name PlayerUnfrozeObject
@@ -93,8 +111,11 @@ if SERVER then
 	-- @server
 	-- @param Player ply The player who has unfrozen an entity
 	-- @param Entity ent The unfrozen entity
-	-- @param PhysObj physobj The physics object of the unfrozen entity 
-	add("PlayerUnfrozeObject")
+	-- @param PhysObj physobj The physics object of the unfrozen entity
+	add("PlayerUnfrozeObject", nil, function(instance, ply, ent, physobj)
+		if is_cloak(instance, ply) then return false end
+		return true, {instance.WrapObject(ply), instance.WrapObject(ent), instance.WrapObject(physobj)}
+	end)
 
 	--- Called when a player dies
 	-- @name PlayerDeath
@@ -153,7 +174,10 @@ if SERVER then
 	-- @param Player ply Player who entered a vehicle
 	-- @param Vehicle vehicle Vehicle that was entered
 	-- @param number num Role. The seat number
-	add("PlayerEnteredVehicle")
+	add("PlayerEnteredVehicle", nil, function(instance, ply, vehicle, num)
+		if is_cloak(instance, ply) then return false end
+		return true, {instance.WrapObject(ply), instance.WrapObject(vehicle), num}
+	end)
 
 	--- Called when a players leaves a vehicle
 	-- @name PlayerLeaveVehicle
@@ -161,7 +185,10 @@ if SERVER then
 	-- @server
 	-- @param Player ply Player who left a vehicle
 	-- @param Vehicle vehicle Vehicle that was left
-	add("PlayerLeaveVehicle")
+	add("PlayerLeaveVehicle", nil, function(instance, ply, vehicle)
+		if is_cloak(instance, ply) then return false end
+		return true, {instance.WrapObject(ply), instance.WrapObject(vehicle)}
+	end)
 
 
 	--- Called when a player sends a chat message
@@ -195,7 +222,10 @@ if SERVER then
 	-- @class hook
 	-- @param Player ply Player using the entity
 	-- @param Entity ent Entity being used
-	add("PlayerUse")
+	add("PlayerUse", nil, function(instance, ply, ent)
+		if is_cloak(instance, ply) then return false end
+		return true, {instance.WrapObject(ply), instance.WrapObject(ent)}
+	end)
 
 	--- Called when a players turns their flashlight on or off
 	-- @name PlayerSwitchFlashlight
@@ -472,7 +502,10 @@ add("KeyRelease")
 -- @shared
 -- @param Player ply Player punting the gravgun
 -- @param Entity ent Entity being punted
-add("GravGunPunt")
+add("GravGunPunt", nil, function(instance, ply, ent)
+	if is_cloak(instance, ply) then return false end
+	return true, {instance.WrapObject(ply), instance.WrapObject(ent)}
+end)
 
 --- Called when an entity gets picked up by a physgun
 -- This hook is predicted.
@@ -481,7 +514,10 @@ add("GravGunPunt")
 -- @shared
 -- @param Player ply Player picking up the entity
 -- @param Entity ent Entity being picked up
-add("PhysgunPickup")
+add("PhysgunPickup", nil, function(instance, ply, ent)
+	if is_cloak(instance, ply) then return false end
+	return true, {instance.WrapObject(ply), instance.WrapObject(ent)}
+end)
 
 --- Called when an entity being held by a physgun gets dropped
 -- @name PhysgunDrop
@@ -489,7 +525,10 @@ add("PhysgunPickup")
 -- @shared
 -- @param Player ply Player dropping the entity
 -- @param Entity ent Entity being dropped
-add("PhysgunDrop")
+add("PhysgunDrop", nil, function(instance, ply, ent)
+	if is_cloak(instance, ply) then return false end
+	return true, {instance.WrapObject(ply), instance.WrapObject(ent)}
+end)
 
 --- Called when a player switches their weapon
 -- @name PlayerSwitchWeapon
@@ -604,7 +643,10 @@ end)
 -- @shared
 -- @param Entity ent Entity that had been driven
 -- @param Player ply Player that drove the entity
-add("EndEntityDriving")
+add("EndEntityDriving", nil, function(instance, ent, ply)
+	if is_cloak(instance, ply) then return false end
+	return true, {instance.WrapObject(ent), instance.WrapObject(ply)}
+end)
 
 --- Called when a player starts driving an entity
 -- @name StartEntityDriving
@@ -612,7 +654,10 @@ add("EndEntityDriving")
 -- @shared
 -- @param Entity ent Entity being driven
 -- @param Player ply Player that is driving the entity
-add("StartEntityDriving")
+add("StartEntityDriving", nil, function(instance, ent, ply)
+	if is_cloak(instance, ply) then return false end
+	return true, {instance.WrapObject(ent), instance.WrapObject(ply)}
+end)
 
 --- Tick hook. Called each game tick on both the server and client.
 -- @name Tick

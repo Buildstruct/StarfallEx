@@ -225,6 +225,7 @@ end, cleanupRender)
 -- @param Angle angles View angles
 -- @param number fov View FOV
 SF.hookAdd("RenderScene", "renderscene", function(instance, origin, angles, fov)
+	if is_cloak(instance, LocalPlayer()) then return false end
 	if instance.player == SF.Superuser or haspermission(instance, nil, "render.renderscene") then
 		instance:prepareRender()
 		instance.data.render.isScenic = true
