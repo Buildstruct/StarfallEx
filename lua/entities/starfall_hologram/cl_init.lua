@@ -228,7 +228,7 @@ local function ShowHologramOwners()
 
 			local vec = ent:GetPos():ToScreen()
 
-			draw.DrawText(name .. "\n" .. steamID, "DermaDefault", vec.x, vec.y, Color(255, 0, 0, 255), 1)
+			draw.DrawText(name .. "\n" .. steamID, "DermaDefault", vec.x, vec.y, Color(0, 255, 255, 255), 1)
 		end
 	end
 end
