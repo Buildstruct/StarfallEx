@@ -414,7 +414,33 @@ end
 -- @return table Trace data https://wiki.facepunch.com/gmod/Structures/TraceResult
 function player_methods:getEyeTrace()
 	local e = getply(self)
-	if is_cloak(instance, e) then return nil end
+	if is_cloak(instance, e) then
+		return SF.StructWrapper(instance, SF.SanitizeTraceResult(instance, {
+			['HitBox'] = 0,
+			['HitNonWorld'] = false,
+			['HitGroup'] = 0,
+			['HitPos'] = Vector(0, 0, 0),
+			['Contents'] = 0,
+			['FractionLeftSolid'] = 0,
+			['StartSolid'] = false,
+			['Hit'] = true,
+			['Normal'] = Vector(0, 0, 0),
+			['HitWorld'] = true,
+			['MatType'] = 0,
+			['SurfaceProps'] = 0,
+			['HitTexture'] = '',
+			['Fraction'] = 0,
+			['HitSky'] = false,
+			['Entity'] = Entity(-1)
+			['PhysicsBone'] = 0,
+			['SurfaceFlags'] = 0,
+			['HitNormal'] = Vector(0, 0, 0),
+			['DispFlags'] = 0,
+			['AllSolid'] = false,
+			['StartPos'] = Vector(0, 0, 0),
+			['HitNoDraw'] = false
+		}), "TraceResult")
+	end
 	return SF.StructWrapper(instance, SF.SanitizeTraceResult(instance, Ply_GetEyeTrace(e)), "TraceResult")
 end
 
