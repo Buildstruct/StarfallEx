@@ -431,7 +431,7 @@ function player_methods:getEyeTrace()
 			['HitTexture'] = '',
 			['Fraction'] = 0,
 			['HitSky'] = false,
-			['Entity'] = Entity(-1)
+			['Entity'] = Entity(-1),
 			['PhysicsBone'] = 0,
 			['SurfaceFlags'] = 0,
 			['HitNormal'] = Vector(0, 0, 0),
