@@ -233,7 +233,12 @@ if SERVER then
 	-- @server
 	-- @param Player ply Player switching flashlight
 	-- @param boolean state New flashlight state. True if on.
-	add("PlayerSwitchFlashlight")
+	-- @return boolean? Return false to prevent switching flashlight state. (Requires a connected HUD or owner of the chip).
+	add("PlayerSwitchFlashlight", nil, nil, function(instance, args, ply)
+		if not args then return end
+		local ret = args[#args]
+		if isbool(ret) then return ret end
+	end)
 
 	--- Called when a wants to pick up a weapon
 	-- @name PlayerCanPickupWeapon
@@ -453,13 +458,13 @@ add("PlayerNoClip")
 -- @return boolean? Return true to prevent default step sound (only on chip owner)
 add("PlayerFootstep", nil, function(instance, ply, pos, foot, sound, volume)
 	if is_cloak(instance, ply) then return false end
-    return true, {
-        instance.WrapObject(ply),
-        instance.Types.Vector.Wrap(pos),
-        foot,
-        sound,
-        volume,
-    }
+	return true, {
+		instance.WrapObject(ply),
+		instance.Types.Vector.Wrap(pos),
+		foot,
+		sound,
+		volume,
+	}
 end, returnOnlyOnYourself )
 
 --- Called when a player jumps.
