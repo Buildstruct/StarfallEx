@@ -236,24 +236,12 @@ if SERVER then
 	-- @return boolean? Return false to prevent switching flashlight state. (Requires a connected HUD or owner of the chip).
 	add("PlayerSwitchFlashlight", nil, nil, function(instance, args, ply)
 		if not args then return end
-		local ret = args[#args]
+		
+		local ret = args[2]
+		if not ret then return end 
 		checkluatype(ret, TYPE_BOOL)
-		if ply == instance.player then return ret end
 		if SF.IsHUDActive(instance.entity, ply) then return ret end
-	end)
-
-	--- Called when a player presses TAB while chat is open
-	-- @name OnChatTab
-	-- @class hook
-	-- @client
-	-- @param string text The text currently in the chatbox
-	-- @return string? return a string to change what's currently in the chat box (Requires a connected HUD or owner of the chip).
-	add("OnChatTab", nil, nil, function(instance, args, text)
-		if not args then return end 
-		local newText = args[#args]
-		checkluatype (newText, TYPE_STRING)
-		if LocalPlayer() == instance.player then return newText end
-		if SF.IsHUDActive(instance.entity, LocalPlayer()) then return newText end
+		if ply == instance.player then return ret end
 	end)
 
 	--- Called when a wants to pick up a weapon
@@ -379,6 +367,23 @@ else
 			return true, { txt }
 		end
 		return false
+	end)
+
+
+	--- Called when a player presses TAB while chat is open
+	-- @name OnChatTab
+	-- @class hook
+	-- @client
+	-- @param string text The text currently in the chatbox
+	-- @return string? Return a string to change what's currently in the chat box (Requires a connected HUD or owner of the chip).
+	add("OnChatTab", nil, nil, function(instance, args, text)
+		if not args then return end 
+
+		local newText = args[2]
+		if not newText then return end
+		checkluatype(newText, TYPE_STRING)
+		if SF.IsHUDActive(instance.entity, LocalPlayer()) then return newText end
+		if LocalPlayer() == instance.player then return newText end
 	end)
 
 	--- Called when a clientside entity gets created or re-created via lag/PVS
