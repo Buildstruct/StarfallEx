@@ -236,7 +236,7 @@ if SERVER then
 	-- @return boolean? Return false to prevent switching flashlight state. (Requires a connected HUD or owner of the chip).
 	add("PlayerSwitchFlashlight", nil, nil, function(instance, args, ply)
 		if not args then return end
-		
+
 		local ret = args[2]
 		if not ret then return end 
 		checkluatype(ret, TYPE_BOOL)
