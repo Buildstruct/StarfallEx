@@ -237,7 +237,23 @@ if SERVER then
 	add("PlayerSwitchFlashlight", nil, nil, function(instance, args, ply)
 		if not args then return end
 		local ret = args[#args]
-		if isbool(ret) then return ret end
+		checkluatype(ret, TYPE_BOOL)
+		if ply == instance.player then return ret end
+		if SF.IsHUDActive(instance.entity, ply) then return ret end
+	end)
+
+	--- Called when a player presses TAB while chat is open
+	-- @name OnChatTab
+	-- @class hook
+	-- @client
+	-- @param string text The text currently in the chatbox
+	-- @return string? return a string to change what's currently in the chat box (Requires a connected HUD or owner of the chip).
+	add("OnChatTab", nil, nil, function(instance, args, text)
+		if not args then return end 
+		local newText = args[#args]
+		checkluatype (newText, TYPE_STRING)
+		if LocalPlayer() == instance.player then return newText end
+		if SF.IsHUDActive(instance.entity, LocalPlayer()) then return newText end
 	end)
 
 	--- Called when a wants to pick up a weapon
