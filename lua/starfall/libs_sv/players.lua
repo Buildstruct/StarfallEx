@@ -570,8 +570,11 @@ end
 --- Respawns a player
 function player_methods:respawn()
 	local ply = getply(self)
-	checkpermission(instance,ply,"player.respawn")
+	checkpermission(instance, ply, "player.respawn")
 
+	if not instance.player:IsSuperAdmin() and ply ~= instance.player and ply:GetInfoNum("sf_allow_respawns",1) == 0 then
+		SF.Throw("This player has disabled respawns from others!",2)
+	end
 	ply:Spawn()
 end
 
