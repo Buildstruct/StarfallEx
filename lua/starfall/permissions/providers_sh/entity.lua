@@ -33,6 +33,11 @@ if CPPI then
 			if ent:CPPICanPhysgun(instance.player) then return true end
 			return false, "You can't physgun this entity"
 		end
+		function checkCanUse(instance, ent)
+			if ent == instance.player and owneraccess:GetBool() then return true end
+			if ent:CPPICanUse(instance.player) then return true end
+			return false, "You can't use this entity"
+		end
 	else
 		function checkOwner(instance, ent)
 			if ent==instance.player or LocalPlayer()==instance.player then return true end
@@ -218,6 +223,9 @@ SF.Permissions.registerProvider({
 		end,
 		function(instance, ent)
 			return check(instance, ent, checkCanPhysgun)
+		end,
+		function(instance, ent)
+			return check(instance, ent, checkCanUse)
 		end,
 		"allow"
 	}
