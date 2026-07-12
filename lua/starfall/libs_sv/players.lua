@@ -22,7 +22,7 @@ registerprivilege("player.setPos", "Set Position", "Allows the user to teleport 
 registerprivilege("player.setEyeAngles", "SetEyeAngles", "Allows the user to rotate the view of a player to another orientation", { entities = {}, usergroups = { default = 1 } })
 registerprivilege("player.ignite", "Ignite", "Allows the user to ignite players", { entities = {}, usergroups = { default = 1 } })
 registerprivilege("player.addVelocity", "AddVelocity", "Allows the user to add velocity to a player", { entities = { default = 3 }, usergroups = { default = 1 } })
-registerprivilege("player.respawn","Respawn","Allows the user to respawn a player", { entities = {}, usergroups = { default = 1 } })
+registerprivilege("player.respawn","Respawn","Allows the user to respawn a player", { entities = { default = 1 }, usergroups = { default = 2 } })
 
 local PVSLimitCvar = CreateConVar("sf_pvs_pointlimit", 16, FCVAR_ARCHIVE, "The number of PVS points that can be set on each player, limit is shared across all chips")
 
