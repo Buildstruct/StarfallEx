@@ -9,7 +9,6 @@ local Ent_SetCycle = ENT_META.SetCycle
 
 if CLIENT then
 	registerprivilege("player.getFriendStatus", "FriendStatus", "Whether friend status can be retrieved", { client = { default = 1 } })
-	CreateClientConVar("sf_allow_respawns","1",true,true,"Enables others respawning you",0,1)
 end
 
 local BSA
