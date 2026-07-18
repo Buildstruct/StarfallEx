@@ -723,7 +723,6 @@ end
 function ents_methods:use(usetype, value)
 	local ent = getent(self)
 	checkpermission(instance, ent, "entities.use")
-	if not ent:CPPICanUse(instance.player) then SF.Throw("You can't use this entity") end --bandaid fix until I can figure out the stupid ass way starfall handles their permissions
 	if usetype~=nil then checkluatype(usetype, TYPE_NUMBER) end
 	if value~=nil then checkluatype(value, TYPE_NUMBER) end
 	if Ply_InVehicle(instance.player) and Ent_IsVehicle(ent) then return end -- Prevent source engine bug when using vehicle while in a vehicle
