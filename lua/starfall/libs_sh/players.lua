@@ -397,9 +397,10 @@ end
 
 --- Returns the name of the player's current team
 -- @shared
--- @return string Team Name
+-- @return string BSA Group Name
 function player_methods:getTeamName()
-	return team.GetName(Ply_Team(getply(self)))
+	local groupname,groupcolor = BSA.Players.GetDisplayGroup(unwrap(self), false)
+	return groupname
 end
 
 --- Returns the player's UserID
