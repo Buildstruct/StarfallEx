@@ -368,7 +368,7 @@ end
 -- @shared
 -- @return string BSA Group Name
 function player_methods:getTeamName()
-	local groupname,groupcolor = BSA.Players.GetDisplayGroup(getply(self), false)
+	local groupname,groupcolor = BSA.Players.GetDisplayGroup(unwrap(self), false)
 	return groupname
 end
 
