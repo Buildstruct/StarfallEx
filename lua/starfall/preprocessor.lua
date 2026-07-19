@@ -23,11 +23,6 @@ SF.PreprocessData = {
 			self.includesdata[#self.includesdata + 1] = args
 			SF.PreprocessData.directives.include(self, args)
 		end,
-
-		includedatadir = function(self, args)
-			if #args == 0 then return "Empty includedata directive" end
-			self.includedatadirs[#self.includedatadirs + 1] = args
-		end,
 		
 		includedir = function(self, args)
 			if #args == 0 then return "Empty includedir directive" end
@@ -237,13 +232,6 @@ SF.FileLoader = {
 
 			for _, v in ipairs(fdata.includesdata) do
 				self.dontParseTbl[self:GetIncludePath(v, fdata.path)] = true
-			end
-			for _, v in ipairs(fdata.includedatadirs) do 
-				local dor = self:GetIncludePath(v, fdata.path)
-				local files = file.Find("starfall/" .. dir .. "/*", "DATA")
-				for k, v in ipairs(files) do 
-					self.dontParseTbl[self:GetIncludePath(v, fdata.path)] = true
-				end
 			end
 			for _, v in ipairs(fdata.includes) do
 				self:AddFileToLoad(self:GetIncludePath(v, fdata.path))
