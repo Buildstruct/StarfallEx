@@ -9,7 +9,7 @@ local isentity = isentity
 local Ent_AddCallback,Ent_GetTable,Ent_IsScripted,Ent_IsValid,Ent_RemoveCallback = ENT_META.AddCallback,ENT_META.GetTable,ENT_META.IsScripted,ENT_META.IsValid,ENT_META.RemoveCallback
 
 local function checkBlacklist(class)
-	for _, pattern in pairs(SF.varBlacklistClass) do 
+	for pattern, _ in pairs(SF.varBlacklistClass) do 
 		if pattern:match(class) then return true end 
 	end
 	return false
