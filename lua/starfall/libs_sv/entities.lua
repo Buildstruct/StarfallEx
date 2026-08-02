@@ -8,13 +8,6 @@ local isentity = isentity
 
 local Ent_AddCallback,Ent_GetTable,Ent_IsScripted,Ent_IsValid,Ent_RemoveCallback = ENT_META.AddCallback,ENT_META.GetTable,ENT_META.IsScripted,ENT_META.IsValid,ENT_META.RemoveCallback
 
-local function checkBlacklist(class)
-	for _, pattern in pairs(SF.varBlacklistClass) do 
-		if pattern:match(class) then return true end 
-	end
-	return false
-end
-
 -- Register privileges
 registerprivilege("entities.applyDamage", "Apply damage", "Allows the user to apply damage to an entity", { entities = {} })
 registerprivilege("entities.proxyDamage", "Apply proxy damage", "Allows the user to make an entity apply damage to an entity", { entities = {} })
@@ -1243,7 +1236,6 @@ end
 function ents_methods:getTable()
 	local ent = getent(self)
 	checkpermission(instance, ent, "entities.getTable")
-	if checkBlacklist(ent:GetClass()) then SF.Throw("This entity is blacklisted!", 2) end
 	return instance.Sanitize(Ent_GetTable(ent))
 end
 
@@ -1253,7 +1245,6 @@ end
 function ents_methods:getVar(key)
 	local ent = getent(self)
 	checkpermission(instance, ent, "entities.getTable")
-	if checkBlacklist(ent:GetClass()) then SF.Throw("This entity is blacklisted!", 2) end
 	local var = Ent_GetVar(ent, key)
 	return istable(var) and instance.Sanitize(var) or owrap(var)
 end
