@@ -2451,7 +2451,9 @@ include("preprocessor.lua")
 include("permissions/core.lua")
 include("editor/editor.lua")
 include("transfer.lua")
-if CLIENT then
+if SERVER then 
+	include("gettable_blacklist.lua")
+elseif CLIENT then 
 	include("toolscreen.lua")
 end
 
