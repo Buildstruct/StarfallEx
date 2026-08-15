@@ -170,7 +170,7 @@ return function(instance)
 
 local checktype = instance.CheckType
 local quat_methods, quat_meta = instance.Types.Quaternion.Methods, instance.Types.Quaternion
-local ents_methods = instance.Types.Entity.Methods
+local ents_methods, ent_meta, ewrap, eunwrap = instance.Types.Entity.Methods, instance.Types.Entity, instance.Types.Entity.Wrap, instance.Types.Entity.Unwrap
 local ang_methods, awrap, aunwrap = instance.Types.Angle.Methods, instance.Types.Angle.Wrap, instance.Types.Angle.Unwrap
 local vec_methods, vec_meta, vwrap, vunwrap = instance.Types.Vector.Methods, instance.Types.Vector, instance.Types.Vector.Wrap, instance.Types.Vector.Unwrap
 local mwrap = instance.Types.VMatrix.Wrap
@@ -192,10 +192,8 @@ local function is_cloak(ent)
 	return BSA.Players.IsCloakedFrom(ent, instance.player)
 end
 
-local getent
 local vunwrap1, vunwrap2
 instance:AddHook("initialize", function()
-	getent = instance.Types.Entity.GetEntity
 	vunwrap1, vunwrap2 = vec_meta.QuickUnwrap1, vec_meta.QuickUnwrap2
 end)
 instance.Types.Quaternion.QuaternionMultiply = getQuatMul
@@ -223,8 +221,8 @@ end
 local rijk = { r = 1, i = 2, j = 3, k = 4 }
 
 --- Newindex metamethod
--- @param number|string Key
--- @param number Value to set
+-- @param number|string k
+-- @param number v
 function quat_meta.__newindex(t, k, v)
 	if rijk[k] then
 		rawset(t, rijk[k], v)
@@ -257,7 +255,7 @@ end
 
 --- Index metamethod
 -- Can be indexed with: 1, 2, 3, 4, r, i, j, k, rr, ri, rj, rk, rrr, rijk, kjir, etc. Numerical lookup is the most efficient
--- @param number|string Key
+-- @param number|string k
 -- @return number Found value
 function quat_meta.__index(t, k)
 	local method = quat_methods[k]
@@ -442,6 +440,7 @@ function quat_meta.__unm(q)
 end
 
 --- Equivalence metamethod
+-- @param Quaternion lhs
 -- @param Quaternion rhs Quaternion to compare to
 -- @return boolean True if both sides are equal
 function quat_meta.__eq(lhs, rhs)
@@ -853,7 +852,7 @@ end
 --- Converts entity angles to a quaternion
 -- @return Quaternion Constructed quaternion
 function ents_methods:getQuaternion()
-	local ent = getent(self)
+	local ent = eunwrap(self)
 	if is_cloak(ent) then return wrap({1, 0, 0, 0}) end
 	return wrap(quatFromAngle(ent:GetAngles()))
 end

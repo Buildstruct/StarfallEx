@@ -60,10 +60,7 @@ local col_meta, cwrap, cunwrap = instance.Types.Color, instance.Types.Color.Wrap
 local wirelink_meta, wlwrap, wlunwrap = instance.Types.Wirelink, instance.Types.Wirelink.Wrap, instance.Types.Wirelink.Unwrap
 local COLOR_WHITE = Color(255, 255, 255)
 
-local getent
 instance:AddHook("initialize", function()
-	getent = ent_meta.GetEntity
-
 	local ent = instance.entity
 	if ent.Inputs == nil then
 		WireLib.CreateInputs(ent, {})
@@ -260,7 +257,7 @@ local SFToWire =
 {
 	NORMAL = function(data)
 		local dataType = TypeID( data )
-		
+
 		if dataType == TYPE_NUMBER then
 			return data
 		elseif dataType == TYPE_BOOL then
@@ -273,7 +270,7 @@ local SFToWire =
 	VECTOR = function(data) return vunwrap(data) end,
 	VECTOR2 = function(data) return v2unwrap(data) end,
 	ANGLE = function(data) return aunwrap(data) end,
-	ENTITY = function(data) return getent(data) end,
+	ENTITY = function(data) return eunwrap(data) end,
 	TABLE = function(data)
 		checkluatype(data, TYPE_TABLE, 2)
 		local completed_tables = {}
@@ -343,7 +340,7 @@ local sfTypeToWireTypeTable = {
 -- letter and contain only alphabetical characters or numbers but may not begin with a number.
 -- @param table names An array of input names. May be modified by the function.
 -- @param table types An array of input types. Can be shortcuts. May be modified by the function.
--- @param table? descriptions An optional array of input descriptions. 
+-- @param table? descriptions An optional array of input descriptions.
 function wire_library.adjustInputs(names, types, descriptions)
 	checkpermission(instance, nil, "wire.setInputs")
 
@@ -387,7 +384,7 @@ end
 -- letter and contain only alphabetical characters or numbers but may not begin with a number.
 -- @param table names An array of output names. May be modified by the function.
 -- @param table types An array of output types. Can be shortcuts. May be modified by the function.
--- @param table? descriptions An optional array of output descriptions. 
+-- @param table? descriptions An optional array of output descriptions.
 function wire_library.adjustOutputs(names, types, descriptions)
 	checkpermission(instance, nil, "wire.setOutputs")
 
@@ -560,7 +557,7 @@ end
 function wire_library.delete(entI, inputname)
 	checkluatype(inputname, TYPE_STRING)
 
-	entI = getent(entI)
+	entI = eunwrap(entI)
 
 	checkpermission(instance, entI, "wire.deleteWire")
 
@@ -573,14 +570,14 @@ end
 local function parseEntity(ent, io)
 
 	if ent then
-		ent = getent(ent)
+		ent = eunwrap(ent)
 		checkpermission(instance, ent, "wire.get" .. io)
 	else
 		ent = instance.entity
 	end
 
 	local names, types = {}, {}
-	
+
 	if ent[io] then
 		for k, v in pairs(ent[io]) do
 			if isstring(k) and isstring(v.Type) and k ~= "" then
@@ -609,11 +606,68 @@ function wire_library.getOutputs(entO)
 	return parseEntity(entO, "Outputs")
 end
 
+--- Checks if a given input on an entity is connected to any output
+-- @param Entity ent Entity with input
+-- @param string inputName Input name to check
+-- @return boolean Whether the input is connected
+function wire_library.isConnected(ent, inputName)
+	checkluatype(inputName, TYPE_STRING)
+	ent = eunwrap(ent)
+	checkpermission(instance, ent, "wire.getInputs")
+
+	local inputs = Ent_GetTable(ent).Inputs or SF.Throw("Entity has no inputs", 2)
+	local input = inputs[inputName] or SF.Throw("Invalid input: " .. inputName, 2)
+	return Ent_IsValid(input.Src)
+end
+
+--- Gets the source entity and output name that a given input is wired to
+-- @param Entity ent Entity with input
+-- @param string inputName Input name to check
+-- @return Entity? Source entity, or nil if not wired
+-- @return string? Output name on the source entity, or nil if not wired
+function wire_library.getInputSource(ent, inputName)
+	checkluatype(inputName, TYPE_STRING)
+	ent = eunwrap(ent)
+	checkpermission(instance, ent, "wire.getInputs")
+
+	local inputs = Ent_GetTable(ent).Inputs or SF.Throw("Entity has no inputs", 2)
+	local input = inputs[inputName] or SF.Throw("Invalid input: " .. inputName, 2)
+	if Ent_IsValid(input.Src) then
+		return owrap(input.Src), tostring(input.SrcId)
+	end
+end
+
+--- Gets all destination inputs that a given output is wired to
+-- @param Entity ent Entity with the output
+-- @param string outputName Name of the output to check
+-- @return table A table of destination connections. Each entry is a table with fields `Entity` (the destination entity) and `Name` (the input name on that entity). Returns an empty table if not wired.
+function wire_library.getOutputTargets(ent, outputName)
+	checkluatype(outputName, TYPE_STRING)
+	ent = eunwrap(ent)
+	checkpermission(instance, ent, "wire.getOutputs")
+
+	local outputs = Ent_GetTable(ent).Outputs or SF.Throw("Entity has no outputs", 2)
+	local output = outputs[outputName] or SF.Throw("Invalid output: " .. outputName, 2)
+
+	local destinations = {}
+	local connected = output.Connected or {}
+	for i = 1, #connected do
+		local conn = connected[i]
+		if Ent_IsValid(conn.Entity) then
+			destinations[#destinations + 1] = {
+				Entity = owrap(conn.Entity),
+				Name = tostring(conn.Name)
+			}
+		end
+	end
+	return destinations
+end
+
 --- Returns a wirelink to a wire entity
 -- @param Entity ent Wire entity
 -- @return Wirelink Wirelink of the entity
 function wire_library.getWirelink(ent)
-	ent = getent(ent)
+	ent = eunwrap(ent)
 	checkpermission(instance, ent, "wire.wirelink")
 
 	if not ent.extended then
@@ -669,7 +723,7 @@ end
 -- @param any value The value to set the input to (must match the input type)
 function wire_library.triggerInput(ent, inputname, value)
 	checkluatype(inputname, TYPE_STRING)
-	ent = getent(ent)
+	ent = eunwrap(ent)
 	checkpermission(instance, ent, "wire.trigger")
 	triggerInput(ent, inputname, value)
 end
@@ -680,7 +734,7 @@ end
 -- @param any value The value to set the output to (must match the output type)
 function wire_library.triggerOutput(ent, outputname, value)
 	checkluatype(outputname, TYPE_STRING)
-	ent = getent(ent)
+	ent = eunwrap(ent)
 	checkpermission(instance, ent, "wire.trigger")
 	triggerOutput(ent, outputname, value)
 end
@@ -692,7 +746,7 @@ end
 function wire_library.triggerCell(ent, index, value)
 	checkluatype(index, TYPE_NUMBER)
 	checkluatype(value, TYPE_NUMBER)
-	ent = getent(ent)
+	ent = eunwrap(ent)
 	checkpermission(instance, ent, "wire.trigger")
 	triggerCell(ent, index, value)
 end
@@ -703,7 +757,7 @@ end
 -- @return any value The value to set the input to (must match the input type)
 function wire_library.readInput(ent, inputname)
 	checkluatype(inputname, TYPE_STRING)
-	ent = getent(ent)
+	ent = eunwrap(ent)
 	checkpermission(instance, ent, "wire.read")
 	return readInput(ent, inputname)
 end
@@ -714,7 +768,7 @@ end
 -- @return any value The value to set the output to (must match the output type)
 function wire_library.readOutput(ent, outputname)
 	checkluatype(outputname, TYPE_STRING)
-	ent = getent(ent)
+	ent = eunwrap(ent)
 	checkpermission(instance, ent, "wire.read")
 	return readOutput(ent, outputname)
 end
@@ -725,7 +779,7 @@ end
 -- @return number The value at the address
 function wire_library.readCell(ent, index)
 	checkluatype(index, TYPE_NUMBER)
-	ent = getent(ent)
+	ent = eunwrap(ent)
 	checkpermission(instance, ent, "wire.read")
 	return readCell(ent, index)
 end

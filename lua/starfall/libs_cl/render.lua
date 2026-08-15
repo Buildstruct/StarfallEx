@@ -8,6 +8,7 @@ local pcall = pcall
 local setmetatable = setmetatable
 local dgetmeta = debug.getmetatable
 local checkluatype = SF.CheckLuaType
+local checkvector = SF.CheckVector
 local haspermission = SF.Permissions.hasAccess
 local registerprivilege = SF.Permissions.registerPrivilege
 local COL_META,ENT_META,VEC_META = FindMetaTable("Color"),FindMetaTable("Entity"),FindMetaTable("Vector")
@@ -34,7 +35,9 @@ registerprivilege("render.captureImage", "Render Capture Image", "Allows capturi
 registerprivilege("render.fog", "Render Fog", "Allows the user to control fog", { client = {} })
 registerprivilege("render.hud", "Render Hud", "Allows the user to render to your hud", { client = { default = 5 } })
 registerprivilege("render.calcview", "Render CalcView", "Allows the use of the CalcView hook", { client = { default = 5 } })
+registerprivilege("render.calcviewmodelview", "Render CalcViewModelView", "Allows the use of the CalcViewModelView hook", { client = { default = 5 } })
 registerprivilege("render.screenshake", "Render Screen Shake", "Allows screen shaking", { client = { default = 5 } })
+registerprivilege("render.screeneffect", "Screenspace effects", "Allows the use of screenspace effects", { client = { default = 5 } })
 
 local cv_max_fonts = CreateConVar("sf_render_maxfonts", "30", { FCVAR_ARCHIVE })
 local cv_max_maxrenderviewsperframe = CreateConVar("sf_render_maxrenderviewsperframe", "2", { FCVAR_ARCHIVE })
@@ -409,7 +412,7 @@ SF.hookAdd("PostDraw2DSkyBox", nil, hudPrepareSafeArgs, cleanupRender)
 -- @client
 SF.hookAdd("PostDrawSkyBox", nil, hudPrepareSafeArgs, cleanupRender)
 
---- Called when the engine wants to calculate the player's view. Only works if connected to Starfall HUD
+--- Called when the engine wants to calculate the player's view (only works if connected to Starfall HUD)
 -- @name CalcView
 -- @class hook
 -- @client
@@ -427,14 +430,52 @@ end, function(instance, tbl)
 	local t = tbl[2]
 	if tbl[1] and istable(t) then
 		local ret = {}
-		if t.origin then pcall(function() ret.origin = instance.Types.Vector.Unwrap(t.origin) end) end
-		if t.angles then pcall(function() ret.angles = instance.Types.Angle.Unwrap(t.angles) end) end
+		local ok, err = pcall(function()
+			if t.origin~=nil then ret.origin = instance.Types.Vector.Unwrap(t.origin) checkvector(t.origin) end
+			if t.angles~=nil then ret.angles = instance.Types.Angle.Unwrap(t.angles) checkvector(t.angles) end
+		end)
+		if not ok then
+			instance:Error(SF.MakeError("CalcView hook invalid origin or angles! "..tostring(err)))
+			return
+		end
 		ret.fov = t.fov
 		ret.znear = t.znear
 		ret.zfar = t.zfar
 		ret.drawviewer = t.drawviewer
 		ret.ortho  = t.ortho
 		return ret
+	end
+end)
+
+--- Called when the engine wants to calculate the viewmodel position and angle (only works if connected to Starfall HUD)
+-- @name CalcViewModelView
+-- @class hook
+-- @client
+-- @param Weapon wep The weapon entity
+-- @param Entity vm The viewmodel entity
+-- @param Vector oldPos Original position (before viewmodel bobbing and swaying)
+-- @param Angle oldAng Original angle (before viewmodel bobbing and swaying)
+-- @param Vector pos Current position
+-- @param Angle ang Current angle
+-- @return Vector New position (you must return a value)
+-- @return Angle New angle (you must return a value)
+SF.hookAdd("CalcViewModelView", nil, function(instance, wep, vm, oldPos, oldAng, pos, ang)
+	return instance.player == SF.Superuser or haspermission(instance, nil, "render.calcviewmodelview"),
+		{instance.Types.Weapon.Wrap(wep), instance.Types.Entity.Wrap(vm), instance.Types.Vector.Wrap(oldPos), instance.Types.Angle.Wrap(oldAng), instance.Types.Vector.Wrap(pos), instance.Types.Angle.Wrap(ang)}
+	end, function(instance, tbl)
+	local pos, ang = tbl[2], tbl[3]
+	if tbl[1] and pos~=nil and ang~=nil then
+		local ok, err = pcall(function()
+			pos = instance.Types.Vector.Unwrap(pos)
+			checkvector(pos)
+			ang = instance.Types.Angle.Unwrap(ang)
+			checkvector(ang)
+		end)
+		if ok then
+			return pos, ang
+		else
+			instance:Error(SF.MakeError("CalcViewModelView hook returned invalid type! "..tostring(err)))
+		end
 	end
 end)
 
@@ -491,12 +532,10 @@ local markup_methods, markwrap, markunwrap = instance.Types.Markup.Methods, inst
 local mtlunwrap = instance.Types.LockedMaterial.Unwrap
 
 
-local getent
 local vunwrap1, vunwrap2, vunwrap3, vunwrap4
 local aunwrap1
 local cunwrap1
 instance:AddHook("initialize", function()
-	getent = instance.Types.Entity.GetEntity
 	vunwrap1, vunwrap2, vunwrap3, vunwrap4 = vec_meta.QuickUnwrap1, vec_meta.QuickUnwrap2, vec_meta.QuickUnwrap3, vec_meta.QuickUnwrap4
 	aunwrap1 = ang_meta.QuickUnwrap1
 	cunwrap1 = col_meta.QuickUnwrap1
@@ -884,7 +923,7 @@ end
 -- @param Entity? screen (Optional) entity of screen
 function render_library.setBackgroundColor(col, screen)
 	if screen then
-		screen = getent(screen)
+		screen = eunwrap(screen)
 		if screen.link ~= instance.entity then
 			SF.Throw("Entity has to be linked!", 2)
 		end
@@ -921,7 +960,7 @@ end
 --- Gets the current draw color set with render.setColor().
 -- @return Color The current draw color
 function render_library.getColor()
-	if not renderdata.isRendering then SF.Throw("Not in rendering hook.", 2) end 
+	if not renderdata.isRendering then SF.Throw("Not in rendering hook.", 2) end
 	local drawClr = surface.GetDrawColor()
 	return setmetatable({drawClr.r, drawClr.g, drawClr.b, drawClr.a}, col_meta)
 end
@@ -994,7 +1033,7 @@ end
 --- Also supports image URLs or image data (These will create a rendertarget for the $basetexture): https://en.wikipedia.org/wiki/Data_URI_scheme
 --- Make sure to store the material to use it rather than calling this slow function repeatedly.
 --- NOTE: This no longer supports material names. Use texture names instead (Textures are .vtf, material are .vmt)
--- @param string tx Texture file path, a http url, or image data: https://en.wikipedia.org/wiki/Data_URI_scheme
+-- @param string tx Texture file path, or http URL, or image data: https://en.wikipedia.org/wiki/Data_URI_scheme
 -- @param function? cb An optional callback called when loading is done. Passes nil if it fails or Passes the material, url, width, height, and layout function which can be called with x, y, w, h to reposition the image in the texture.
 -- @param function? done An optional callback called when the image is done loading. Passes the material, url
 -- @return Material The material. Use with render.setMaterial to draw with it.
@@ -1011,7 +1050,7 @@ function render_library.createMaterial(tx, cb, done)
 	return m
 end
 
---- Releases the texture. Required if you reach the maximum url textures.
+--- Releases the texture. Required if you reach the maximum URL textures.
 -- @param Material mat The material object
 function render_library.destroyTexture(mat)
 	mat:destroy()
@@ -1191,6 +1230,7 @@ end
 
 --- Check if the specified render target exists.
 -- @param string name The name of the render target
+-- @return boolean Whether the render target exists
 function render_library.renderTargetExists(name)
 	checkluatype (name, TYPE_STRING)
 	return renderdata.rendertargets[name] ~= nil
@@ -1306,7 +1346,7 @@ end
 function render_library.setTextureFromScreen(ent)
 	if not renderdata.isRendering then SF.Throw("Not in rendering hook.", 2) end
 
-	ent = getent(ent)
+	ent = eunwrap(ent)
 	if ent.GPU and ent.GPU.RT then
 		RT_Material:SetTexture("$basetexture", ent.GPU.RT)
 		surface_SetMaterial(RT_Material)
@@ -1526,7 +1566,7 @@ local drawTriangle
 do
 	local mesh_Position, mesh_Color, mesh_AdvanceVertex =
 		mesh.Position, mesh.Color, mesh.AdvanceVertex
-	
+
 	local v1_vec, v2_vec, v3_vec = Vector(0, 0, 0), Vector(0, 0, 0), Vector(0, 0, 0)
 
 	drawTriangle = function(x1, y1, x2, y2, x3, y3)
@@ -1555,7 +1595,7 @@ render_library.drawTriangle = function(x1, y1, x2, y2, x3, y3)
 	mesh_Begin(MATERIAL_TRIANGLES, 1)
 		local success, err = pcall(drawTriangle, x1, y1, x2, y2, x3, y3)
 	mesh_End()
-	if not success then 
+	if not success then
 		error(err, 2)
 	end
 end
@@ -1610,7 +1650,7 @@ local drawTexturedRectUV
 do
 	local mesh_Position, mesh_Color, mesh_TexCoord, mesh_AdvanceVertex =
 		mesh.Position, mesh.Color, mesh.TexCoord, mesh.AdvanceVertex
-	
+
 	drawTexturedRectUV = function(startU, startV, endU, endV)
 		local r, g, b, a = Col_Unpack(currentcolor)
 		mesh_Position( quad_v1 ); mesh_Color( r, g, b, a ); mesh_TexCoord( 0, startU, startV ); mesh_AdvanceVertex();
@@ -1678,7 +1718,7 @@ local drawTexturedTriangleUV
 do
 	local mesh_Position, mesh_Color, mesh_TexCoord, mesh_AdvanceVertex =
 		mesh.Position, mesh.Color, mesh.TexCoord, mesh.AdvanceVertex
-	
+
 	local v1_vec, v2_vec, v3_vec = Vector(0, 0, 0), Vector(0, 0, 0), Vector(0, 0, 0)
 
 	drawTexturedTriangleUV = function(vert1, vert2, vert3)
@@ -1701,7 +1741,7 @@ render_library.drawTexturedTriangleUV = function(vert1, vert2, vert3)
 	mesh_Begin(MATERIAL_TRIANGLES, 1)
 		local success, err = pcall(drawTexturedTriangleUV, vert1, vert2, vert3)
 	mesh_End()
-	if not success then 
+	if not success then
 		error(err, 2)
 	end
 end
@@ -2162,7 +2202,7 @@ end
 local pos_vec, norm_vec = Vector(0, 0, 0), Vector(0, 0, 0)
 --- Draws a quad.
 -- @param Vector pos Origin of the quad.
--- @param Vector normal The face direction of the quad.
+-- @param Vector norm The face direction of the quad.
 -- @param number width The width of the quad.
 -- @param number height The height of the quad.
 -- @param number? rot The rotation of the quad counter-clockwise in degrees around the normal axis. In other words, the quad will always face the same way but this will rotate its corners.
@@ -2179,7 +2219,7 @@ local draw3DQuadUV
 do
 	local mesh_Position, mesh_Color, mesh_TexCoord, mesh_AdvanceVertex =
 		mesh.Position, mesh.Color, mesh.TexCoord, mesh.AdvanceVertex
-	
+
 	draw3DQuadUV = function(vert1, vert2, vert3, vert4)
 		local r, g, b, a = Col_Unpack(currentcolor)
 		Vec_SetUnpacked(quad_v1, vert1[1], vert1[2], vert1[3])
@@ -2210,7 +2250,7 @@ local draw3DTriangle
 do
 	local mesh_Position, mesh_Color, mesh_AdvanceVertex =
 		mesh.Position, mesh.Color, mesh.AdvanceVertex
-	
+
 	local v1_vec, v2_vec, v3_vec = Vector(0, 0, 0), Vector(0, 0, 0), Vector(0, 0, 0)
 
 	draw3DTriangle = function(vert1, vert2, vert3)
@@ -2234,7 +2274,7 @@ render_library.draw3DTriangle = function(vert1, vert2, vert3)
 	mesh_Begin(MATERIAL_TRIANGLES, 1)
 		local success, err = pcall(draw3DTriangle, vert1, vert2, vert3)
 	mesh_End()
-	if not success then 
+	if not success then
 		error(err, 2)
 	end
 end
@@ -2243,7 +2283,7 @@ local draw3DTriangleUV
 do
 	local mesh_Position, mesh_Color, mesh_TexCoord, mesh_AdvanceVertex =
 		mesh.Position, mesh.Color, mesh.TexCoord, mesh.AdvanceVertex
-	
+
 	local v1_vec, v2_vec, v3_vec = Vector(0, 0, 0), Vector(0, 0, 0), Vector(0, 0, 0)
 
 	draw3DTriangleUV = function(vert1, vert2, vert3)
@@ -2266,7 +2306,7 @@ render_library.draw3DTriangleUV = function(vert1, vert2, vert3)
 	mesh_Begin(MATERIAL_TRIANGLES, 1)
 		local success, err = pcall(draw3DTriangleUV, vert1, vert2, vert3)
 	mesh_End()
-	if not success then 
+	if not success then
 		error(err, 2)
 	end
 end
@@ -2279,13 +2319,13 @@ end
 -- @return number? Y position or nil if the player is not aiming at the screen
 function render_library.cursorPos(ply, screen)
 	if ply~=nil then
-		ply = getent(ply)
+		ply = eunwrap(ply)
 		if not ply:IsPlayer() then SF.Throw("Entity isn't a player", 2) end
 	else
 		ply = LocalPlayer()
 	end
 
-	if screen~=nil then screen = getent(screen) else screen = renderdata.renderEnt end
+	if screen~=nil then screen = eunwrap(screen) else screen = renderdata.renderEnt end
 	if not screen then SF.Throw("Invalid screen", 2) end
 	local screenTransform = Ent_GetTable(screen).Transform
 	if not screenTransform then SF.Throw("Invalid screen", 2) end
@@ -2325,7 +2365,7 @@ end
 -- @param Entity e The screen to get info from.
 -- @return table A table describing the screen.
 function render_library.getScreenInfo(e)
-	local screen = getent(e)
+	local screen = eunwrap(e)
 	if not screen.ScreenInfo then SF.Throw("Invalid screen", 2) end
 	return instance.Sanitize(screen.ScreenInfo)
 end
@@ -2515,6 +2555,8 @@ function render_library.renderView(tbl)
 		pushedClippingPlanes = pushedClippingPlanes
 	}
 
+	hook.Add("ShouldDrawHalos","SF",function() return false end)
+
 	matrix_stack = { }
 	view_matrix_stack = { }
 	renderdata.changedFilterMag = false
@@ -2566,6 +2608,8 @@ function render_library.renderView(tbl)
 	renderdata.noStencil = prevData.noStencil
 	renderdata.usingRT = prevData.usingRT
 	pushedClippingPlanes = prevData.pushedClippingPlanes
+
+	hook.Remove("ShouldDrawHalos","SF")
 
 	renderingView = false
 	renderdata.renderingView = false
@@ -2672,7 +2716,7 @@ function render_library.setFogMode(mode)
 end
 
 --- Changes color of the fog
--- @param Color col Color (alpha won't have any effect)
+-- @param Color color Color (alpha won't have any effect)
 function render_library.setFogColor(color)
 	checkpermission(instance, nil, "render.fog")
 	if not renderdata.isRendering then SF.Throw("Not in rendering hook.", 2) end
@@ -2716,6 +2760,26 @@ function render_library.setFogHeight(height)
 	render.SetFogZ(height)
 end
 
+--- Get the mode of the current calculated Fog. See: https://wiki.facepunch.com/gmod/Enums/MATERIAL_FOG
+-- @return number return the Fog mode.
+render_library.getFogMode = render.GetFogMode
+
+--- Get the color of the current calculated Fog
+-- @return number The red channel value.
+-- @return number The green channel value.
+-- @return number The blue channel value.
+render_library.getFogColor = render.GetFogColor
+
+--- Get the distances of the current calculated Fog
+-- @return number The start distance of the Fog.
+-- @return number The end distance of the Fog.
+-- @return number The height of the Fog.
+render_library.getFogDistances = render.GetFogDistances
+
+--- Get the maximum density of the current calculated Fog
+-- @return number The maximum density of the Fog (0-1).
+render_library.getFogDensity = render.GetFogMaxDensity
+
 
 --- Checks whether the hardware supports HDR
 -- @return boolean True if supported
@@ -2750,7 +2814,7 @@ function render_library.setScreenDimensions(screen, x, y, w, h)
 	checkluatype(h, TYPE_NUMBER)
 	local halfw, halfh = w/2, h/2
 	if x-halfw<-1024 or y-halfh<-1024 or w<1 or h<1 or x+halfw>1024 or y+halfh>1024 then SF.Throw("The specified dimensions exceeds the bounds!", 2) end
-	screen = getent(screen)
+	screen = eunwrap(screen)
 	local custominfo = SF.CustomScreenInfo
 	if screen.ScreenInfo.Name ~= custominfo.Name then SF.Throw("Expected a custom screen. Make sure the selected screen is the 'custom screen' model!", 2) end
 
@@ -2774,7 +2838,7 @@ function render_library.screenShake(amplitude, frequency, duration)
 	util.ScreenShake(vector_zero, amplitude, frequency, clamp(duration, 0, 10), 0)
 end
 
---- Set's the depth range of the upcoming render.
+--- Sets the depth range of the upcoming render.
 -- @param number min The minimum depth of the upcoming render. 0.0 = render normally; 1.0 = render nothing.
 -- @param number max The maximum depth of the upcoming render. 0.0 = render everything (through walls); 1.0 = render normally.
 function render_library.depthRange(min, max)
@@ -2790,10 +2854,42 @@ end
 function render_library.pixelVisible(position, radius)
 	position = vunwrap1(position)
 	checkluatype(radius, TYPE_NUMBER)
-	
+
 	local PixVis = pixhandle_bank:use(instance.player)
 	renderdata.usedPixelVis[#renderdata.usedPixelVis + 1] = PixVis
 	return util.PixelVisible(position, radius, PixVis)
+end
+
+--- Copies the entire screen to the screen effect texture, which can be acquired via render.getScreenEffectTexture (Requires HUD)
+-- @client
+-- @param number textureIndex? Texture index to update. (optional, default is 0)
+function render_library.updateScreenEffectTexture(textureIndex)
+	checkpermission(instance, nil, "render.screeneffect")
+	if textureIndex ~= nil then
+		checkluatype(textureIndex, TYPE_NUMBER)
+		if textureIndex < 0 or textureIndex > 3 then
+			SF.Throw("Invalid screen effect texture index: "..textureIndex, 2)
+		end
+	else
+		textureIndex = 0
+	end
+	render.UpdateScreenEffectTexture(textureIndex)
+end
+
+--- Obtain an texture of the screen. You must call render.updateScreenEffectTexture in order to update this texture with the currently rendered scene
+-- @client
+-- @param number textureIndex? Texture index to update. (optional, default is 0)
+-- @return string Requested texture
+function render_library.getScreenEffectTexture(textureIndex)
+	if textureIndex ~= nil then
+		checkluatype(textureIndex, TYPE_NUMBER)
+		if textureIndex < 0 or textureIndex > 3 then
+			SF.Throw("Invalid screen effect texture index: "..textureIndex, 2)
+		end
+	else
+		textureIndex = 0
+	end
+	return render.GetScreenEffectTexture(textureIndex):GetName()
 end
 
 end

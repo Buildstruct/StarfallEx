@@ -40,7 +40,7 @@ function net.ReadStarfall(ply, callback)
 	else
 		setup(true, true, nil)
 	end
-
+	sfdata.superuser = net.ReadBool()
 	sfdata.mainfile = net.ReadString()
 
 	net.ReadStream(ply, function(data)
@@ -67,6 +67,7 @@ function net.WriteStarfall(sfdata, callback)
 			net.WriteBool(false)
 		end
 	end
+	net.WriteBool(sfdata.superuser == true)
 	net.WriteString(sfdata.mainfile)
 
 	if sfdata.compressed then
@@ -249,7 +250,7 @@ else
 	function SF.SendError(chip, message, traceback)
 		local owner, is_blocked = chip.owner, false
 		if IsValid(owner) then
-			is_blocked = SF.BlockedUsers:isBlocked(owner:SteamID())
+			is_blocked = SF.BlockedUsers:contains(owner:SteamID())
 		end
 		net.Start("starfall_error")
 			net.WriteUInt(chip:EntIndex(), 16)
