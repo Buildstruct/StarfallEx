@@ -234,7 +234,7 @@ function TabHandler:RegisterSettings()
 	if system.IsLinux() then
 		local label = vgui.Create("DLabel")
 		label:SetWrap(true)
-		label:SetText("Warning: You are running linux, you should make sure font is installed in your system or you wont be able to see it!")
+		label:SetText("Warning: You are running linux, you should make sure font is installed in your system or you won't be able to see it!")
 		label:SetPos(10, 0)
 		form:AddItem(label)
 	end
@@ -1042,7 +1042,7 @@ function PANEL:PaintLine(row, drawpos, leftOffset, drawonlytext)
 		end
 		nonwhitespace = true
 		if offset > self.Size[2] then return end
-		if offset < 0 then -- When there is part of line horizontally begining before our scrolled area
+		if offset < 0 then -- When there is part of line horizontally beginning before our scrolled area
 			local length = cell[1]:len()
 			if length > -offset then
 				local line = cell[1]:sub(1-offset)
@@ -1580,7 +1580,7 @@ function PANEL:ScrollCaret()
 	local visCaret = self.Caret[1] - self:GetRowOffset(self.Caret[1])
 	if visCaret - self.Scroll[1] < 3 then
 		local line = self.Caret[1]-3
-		while line > 1 and (self.Rows[line][3] or visCaret-line < 3)  do
+		while line > 1 and ((self.Rows[line] and self.Rows[line][3]) or visCaret-line < 3)  do
 			line = line - 1
 		end
 		self.ScrollBar:SetScrollFix(math.max(line,1))
@@ -1588,7 +1588,7 @@ function PANEL:ScrollCaret()
 	if visCaret - self.Scroll[1] > self.Size[1] - 2 then
 		local line = self.Scroll[1]
 		local lines = #self.Rows
-		while line <= lines and (self.Rows[line][3] or visCaret - line > self.Size[1] - 2) do
+		while line <= lines and ((self.Rows[line] and self.Rows[line][3]) or visCaret - line > self.Size[1] - 2) do
 			line = line + 1
 		end
 		self.ScrollBar:SetScrollFix(math.max(line,1))
@@ -2043,7 +2043,7 @@ function PANEL:CreateFindWindow()
 	-- Replace all button
 	local ReplaceAll = vgui.Create("DButton", replacetab)
 	ReplaceAll:SetText("Replace All")
-	ReplaceAll:SetToolTip("Replace all occurences of the match in the entire file, and close the Find window.")
+	ReplaceAll:SetToolTip("Replace all occurrences of the match in the entire file, and close the Find window.")
 	ReplaceAll:SetPos(233, 54)
 	ReplaceAll:SetSize(70, 20)
 	ReplaceAll.DoClick = function(pnl)
@@ -3375,13 +3375,8 @@ function PANEL:GetSyntaxColor(name)
 end
 
 function PANEL:SyntaxColorLine(line)
-	prev = prev or {}
 	if #self.Rows[line] > 2048 then -- Too long to parse
 		local cols = TabHandler.Modes.Text.SyntaxColorLine(self, line)
-		for k,v in pairs(prev) do -- Pass along unfinished etc
-			if isnumber(k) then continue end
-			cols[k] = v
-		end
 		return cols
 	end
 	local cols = self:DoAction("SyntaxColorLine", line)

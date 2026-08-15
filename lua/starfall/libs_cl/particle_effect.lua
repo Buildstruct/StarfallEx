@@ -3,7 +3,7 @@ local registerprivilege = SF.Permissions.registerPrivilege
 local IsValid = IsValid
 
 -- Create permission types.
-registerprivilege("particleEffect.attach", "Allow users to create particle effect", { client = {}, entities = {} })
+registerprivilege("particleEffect.attach", "Attach a particle effect", "Allows users to attach particle effects to entities", { client = {}, entities = {} })
 
 local plyCount = SF.LimitObject("particleeffects", "particle effects", 16, "The number of created particle effects via Starfall per client at once")
 SF.ResourceCounters.ParticleEffects = {icon = "icon16/asterisk_orange.png", count = function(ply) return plyCount:get(ply) end}
@@ -32,11 +32,9 @@ local particle_meta, wrap, unwrap = instance.Types.ParticleEffect, instance.Type
 local ent_meta, ewrap, eunwrap = instance.Types.Entity, instance.Types.Entity.Wrap, instance.Types.Entity.Unwrap
 local vec_meta, vwrap, vunwrap = instance.Types.Vector, instance.Types.Vector.Wrap, instance.Types.Vector.Unwrap
 
-local getent
 local vunwrap1
 local particleEffects = {}
 instance:AddHook("initialize", function()
-	getent = instance.Types.Entity.GetEntity
 	vunwrap1 = vec_meta.QuickUnwrap1
 end)
 
@@ -185,71 +183,71 @@ end
 --- Sets a value for given control point.
 -- @param number id Control Point ID (0-63)
 -- @param Vector value Value
-function particleef_methods:setControlPoint(id,value)
+function particleef_methods:setControlPoint(id, value)
 	local uw = unwrap(self)
 
 	checkluatype (id, TYPE_NUMBER)
 
 	checkValid(uw)
 
-	uw:SetControlPoint(id,vunwrap1(value))
+	uw:SetControlPoint(id, vunwrap1(value))
 end
 
 
 --- Essentially makes child control point follow the parent entity.
 -- @param number id Child Control Point ID (0-63)
 -- @param Entity entity Entity parent
-function particleef_methods:setControlPointEntity(id,entity)
+function particleef_methods:setControlPointEntity(id, entity)
 	local uw = unwrap(self)
-	local entity = getent(entity)
+	local entity = eunwrap(entity)
 
 	checkluatype (id, TYPE_NUMBER)
 
 	checkValid(uw)
 	if is_cloaked_chain(entity) then SF.Throw("Cannot attach particle effects to a cloaked entity.", 2) end
 
-	uw:SetControlPointEntity(id,entity)
+	uw:SetControlPointEntity(id, entity)
 end
 
 
 --- Sets the forward direction for given control point.
 -- @param number id Control Point ID (0-63)
--- @param Vector fwd Forward vector
-function particleef_methods:setForwardVector(id,value)
+-- @param Vector value Forward vector
+function particleef_methods:setForwardVector(id, value)
 	local uw = unwrap(self)
 
 	checkluatype (id, TYPE_NUMBER)
 
 	checkValid(uw)
 
-	uw:SetControlPointForwardVector(id,vunwrap1(value))
+	uw:SetControlPointForwardVector(id, vunwrap1(value))
 end
 
 --- Sets the right direction for given control point.
 -- @param number id Control Point ID (0-63)
--- @param Vector right Right vector
-function particleef_methods:setRightVector(id,value)
+-- @param Vector value Right vector
+function particleef_methods:setRightVector(id, value)
 	local uw = unwrap(self)
 
 	checkluatype (id, TYPE_NUMBER)
 
 	checkValid(uw)
 
-	uw:SetControlPointRightVector(id,vunwrap1(value))
+	uw:SetControlPointRightVector(id, vunwrap1(value))
 end
 
 
 --- Sets the up direction for given control point.
 -- @param number id Control Point ID (0-63)
--- @param Vector up Up vector
-function particleef_methods:setUpVector(id,value)
+-- @param Vector value Up vector
+function particleef_methods:setUpVector(id, value)
 	local uw = unwrap(self)
 
 	checkluatype (id, TYPE_NUMBER)
 
 	checkValid(uw)
 
-	uw:SetControlPointUpVector(id,vunwrap1(value))
+	uw:SetControlPointUpVector(id, vunwrap1(value))
 
 end
 
@@ -257,7 +255,7 @@ end
 --- Sets the parent for given control point.
 -- @param number id Child Control Point ID (0-63)
 -- @param number parentid Parent control point ID (0-63)
-function particleef_methods:setControlPointParent(id,parentid)
+function particleef_methods:setControlPointParent(id, parentid)
 	local uw = unwrap(self)
 
 	checkluatype (id, TYPE_NUMBER)
@@ -265,7 +263,7 @@ function particleef_methods:setControlPointParent(id,parentid)
 
 	checkValid(uw)
 
-	uw:SetControlPointParent(id,parentid)
+	uw:SetControlPointParent(id, parentid)
 
 end
 

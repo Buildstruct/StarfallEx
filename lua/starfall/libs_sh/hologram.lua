@@ -27,12 +27,23 @@ local cl_hologram_meta = {
 }
 SF.Cl_Hologram_Meta = cl_hologram_meta
 
+local plyHoloRenderBurst
+
 if SERVER then
 	registerprivilege("hologram.setMoveType", "Set MoveType", "Allows the user to set hologram's movetype", { entities = {} })
+else
+	plyHoloRenderBurst = SF.BurstObject("holograms_draw", "rendered holograms", 200, 200, "Number of holograms that can be rendered per frame", "Number of holograms that can be rendered per frame")
+	function plyHoloRenderBurst:calc(obj)
+		local t = RealTime()
+		local new = math.min(obj.val + (t - obj.lasttick)/RealFrameTime() * self.rate, self.max)
+		obj.val = new
+		obj.lasttick = t
+		return new
+	end
 end
 
 
---- Library for creating and manipulating physics-less models AKA "Holograms".
+--- Library for creating and manipulating physics-less models (holograms).
 -- @name hologram
 -- @class library
 -- @libtbl hologram_library
@@ -42,7 +53,7 @@ SF.RegisterLibrary("hologram")
 -- @name Hologram
 -- @class type
 -- @libtbl hologram_methods
-SF.RegisterType("Hologram", true, false, nil, "Entity")
+SF.RegisterType("Hologram", "entity", nil, nil, "Entity")
 
 local BSA
 local function is_cloaked_chain(instance, ent)
@@ -85,11 +96,9 @@ local mtx_meta, mwrap, munwrap = instance.Types.VMatrix, instance.Types.VMatrix.
 
 local VECTOR_PLAYER_COLOR_DISABLED = Vector(-1, -1, -1)
 
-local getent
 local vunwrap1, vunwrap2
 local aunwrap1
 instance:AddHook("initialize", function()
-	getent = instance.Types.Entity.GetEntity
 	hologram_meta.__tostring = ent_meta.__tostring
 	vunwrap1, vunwrap2 = vec_meta.QuickUnwrap1, vec_meta.QuickUnwrap2
 	aunwrap1 = ang_meta.QuickUnwrap1
@@ -106,20 +115,11 @@ instance:AddHook("deinitialize", function()
 	end
 end)
 
-local function getholo(self)
-	local ent = hologram_meta.sf2sensitive[self]
-	if Ent_IsValid(ent) then
-		return ent
-	else
-		SF.Throw("Entity is not valid.", 3)
-	end
-end
-
 --- Casts a hologram entity into the hologram type
 -- @shared
 -- @return Hologram Hologram instance
 function ents_methods:toHologram()
-	local ent = getent(self)
+	local ent = eunwrap(self)
 	if not Ent_GetTable(ent).IsSFHologram then SF.Throw("The entity isn't a hologram", 2) end
 	return wrap(ent)
 end
@@ -176,8 +176,8 @@ function hologram_library.create(pos, ang, model, scale)
 	return wrap(holoent)
 end
 
---- Checks if a user can spawn anymore holograms.
--- @return boolean True if user can spawn holograms, False if not.
+--- Checks if you can spawn any more holograms
+-- @return boolean Returns true if you can spawn holograms, false if not
 function hologram_library.canSpawn()
 	if not SF.Permissions.hasAccess(instance,  nil, "hologram.create") then return false end
 	return entList:check(instance.player) > 0
@@ -195,7 +195,7 @@ if SERVER then
 	-- @server
 	-- @param Vector vel New local velocity
 	function hologram_methods:setLocalVelocity(vel)
-		local holo = getholo(self)
+		local holo = unwrap(self)
 		vel = vunwrap1(vel)
 		checkpermission(instance, holo, "hologram.setRenderProperty")
 
@@ -208,9 +208,9 @@ if SERVER then
 
 	--- Sets the hologram's local angular velocity.
 	-- @server
-	-- @param Angle angvel *Vector* local angular velocity.
+	-- @param Angle angvel The local angular velocity.
 	function hologram_methods:setLocalAngularVelocity(angvel)
-		local holo = getholo(self)
+		local holo = unwrap(self)
 		angvel = aunwrap1(angvel)
 		checkpermission(instance, holo, "hologram.setRenderProperty")
 
@@ -228,7 +228,7 @@ if SERVER then
 		if move ~= MOVETYPE_NONE and move ~= MOVETYPE_NOCLIP then
 			SF.Throw("Invalid movetype provided, must be either MOVETYPE.NOCLIP or MOVETYPE.NONE", 2)
 		end
-		local holo = getholo(self)
+		local holo = unwrap(self)
 		checkpermission(instance, holo, "hologram.setMoveType")
 		Ent_SetMoveType(holo, move)
 	end
@@ -238,7 +238,7 @@ else
 	-- @shared
 	-- @param Vector vec New position
 	function hologram_methods:setPos(vec)
-		local holo = getholo(self)
+		local holo = unwrap(self)
 		checkpermission(instance, holo, "hologram.setRenderProperty")
 
 		Ent_SetPos(holo, SF.clampPos(vunwrap1(vec)))
@@ -251,20 +251,20 @@ else
 	-- @shared
 	-- @param Angle ang New angles
 	function hologram_methods:setAngles(ang)
-		local holo = getholo(self)
+		local holo = unwrap(self)
 		checkpermission(instance, holo, "hologram.setRenderProperty")
 
 		Ent_SetAngles(holo, aunwrap1(ang))
-		
+
 		local sfParent = SF.Parent.Get(holo)
 		if sfParent and Ent_IsValid(sfParent.parent) then sfParent:updateTransform() end
 	end
-	
+
 	--- Sets the hologram's position local to its parent.
 	-- @shared
 	-- @param Vector vec New position
 	function hologram_methods:setLocalPos(vec)
-		local holo = getholo(self)
+		local holo = unwrap(self)
 		checkpermission(instance, holo, "hologram.setRenderProperty")
 
 		Ent_SetLocalPos(holo, SF.clampPos(vunwrap1(vec)))
@@ -277,11 +277,11 @@ else
 	-- @shared
 	-- @param Angle ang New angles
 	function hologram_methods:setLocalAngles(ang)
-		local holo = getholo(self)
+		local holo = unwrap(self)
 		checkpermission(instance, holo, "hologram.setRenderProperty")
 
 		Ent_SetLocalAngles(holo, aunwrap1(ang))
-		
+
 		local sfParent = SF.Parent.Get(holo)
 		if sfParent and Ent_IsValid(sfParent.parent) then sfParent:updateTransform() end
 	end
@@ -290,7 +290,7 @@ else
 	-- @client
 	-- @param number val The filter function to use http://wiki.facepunch.com/gmod/Enums/TEXFILTER
 	function hologram_methods:setFilterMag(val)
-		local holo = getholo(self)
+		local holo = unwrap(self)
 		local ent_tbl = Ent_GetTable(holo)
 		checkpermission(instance, holo, "hologram.setRenderProperty")
 
@@ -307,7 +307,7 @@ else
 	-- @client
 	-- @param number val The filter function to use http://wiki.facepunch.com/gmod/Enums/TEXFILTER
 	function hologram_methods:setFilterMin(val)
-		local holo = getholo(self)
+		local holo = unwrap(self)
 		local ent_tbl = Ent_GetTable(holo)
 		checkpermission(instance, holo, "hologram.setRenderProperty")
 
@@ -324,7 +324,7 @@ else
 	-- @client
 	-- @param VMatrix mat Starfall matrix to use
 	function hologram_methods:setRenderMatrix(mat)
-		local holo = getholo(self)
+		local holo = unwrap(self)
 		local ent_tbl = Ent_GetTable(holo)
 		checkpermission(instance, holo, "hologram.setRenderProperty")
 
@@ -351,8 +351,9 @@ else
 	-- @param boolean? noTint If true, renders the hologram without its color and opacity. The default is for holograms to render with color or opacity, so use this argument if you need that behavior.
 	function hologram_methods:draw(noTint)
 		if not instance.data.render.isRendering then SF.Throw("Not in rendering hook.", 2) end
+		plyHoloRenderBurst:use(instance.player, 1)
 
-		local holo = getholo(self)
+		local holo = unwrap(self)
 		Ent_SetupBones(holo)
 
 		if noTint then
@@ -379,7 +380,7 @@ end
 -- @shared
 -- @param Vector? color The player color to use, or nil to disable
 function hologram_methods:setPlayerColor(color)
-	local holo = getholo(self)
+	local holo = unwrap(self)
 	checkpermission(instance, holo, "hologram.setRenderProperty")
 	color = color ~= nil and vunwrap(color) or VECTOR_PLAYER_COLOR_DISABLED
 	Ent_GetTable(holo).SetPlayerColorInternal(holo, color)
@@ -391,7 +392,7 @@ end
 -- @shared
 -- @return Vector? color The player color to use, or nil if disabled
 function hologram_methods:getPlayerColor()
-	local holo = getholo(self)
+	local holo = unwrap(self)
 	local color = Ent_GetTable(holo).GetPlayerColorInternal(holo)
 	if color == VECTOR_PLAYER_COLOR_DISABLED then return nil end
 	return vwrap(color)
@@ -405,7 +406,7 @@ end
 -- @param Vector? normal The the direction of the clip plane in world coordinates, or local to entity if it is specified. Only used if enabled.
 -- @param Entity? entity (Optional) The entity to make coordinates local to, otherwise the world is used. Only used if enabled.
 function hologram_methods:setClip(index, enabled, origin, normal, entity)
-	local holo = getholo(self)
+	local holo = unwrap(self)
 	local ent_tbl = Ent_GetTable(holo)
 
 	checkluatype(index, TYPE_NUMBER)
@@ -415,7 +416,7 @@ function hologram_methods:setClip(index, enabled, origin, normal, entity)
 
 	if enabled then
 		if entity ~= nil then
-			entity = getent(entity)
+			entity = eunwrap(entity)
 		end
 
 		origin, normal = vunwrap(origin), vunwrap(normal)
@@ -438,7 +439,7 @@ end
 -- @shared
 -- @param Vector scale Vector new scale
 function hologram_methods:setScale(scale)
-	local holo = getholo(self)
+	local holo = unwrap(self)
 	checkpermission(instance, holo, "hologram.setRenderProperty")
 	Ent_GetTable(holo).SetScale(holo, vunwrap(scale))
 end
@@ -447,7 +448,7 @@ end
 -- @shared
 -- @param Vector size Vector new size in game units
 function hologram_methods:setSize(size)
-	local holo = getholo(self)
+	local holo = unwrap(self)
 	checkpermission(instance, holo, "hologram.setRenderProperty")
 
 	size = vunwrap1(size)
@@ -460,7 +461,7 @@ end
 -- @shared
 -- @return Vector Vector scale
 function hologram_methods:getScale()
-	local holo = getholo(self)
+	local holo = unwrap(self)
 	return vwrap(Ent_GetTable(holo).GetScale(holo))
 end
 
@@ -468,7 +469,7 @@ end
 -- @shared
 -- @param boolean suppress Boolean to represent if shading should be set or not.
 function hologram_methods:suppressEngineLighting(suppress)
-	local holo = getholo(self)
+	local holo = unwrap(self)
 	checkluatype(suppress, TYPE_BOOL)
 	checkpermission(instance, holo, "hologram.setRenderProperty")
 	Ent_GetTable(holo).SetSuppressEngineLighting(holo, suppress)
@@ -478,14 +479,14 @@ end
 -- @shared
 -- @return boolean Whether engine lighting is suppressed
 function hologram_methods:getSuppressEngineLighting()
-	local holo = getholo(self)
+	local holo = unwrap(self)
 	return Ent_GetTable(holo).GetSuppressEngineLighting(holo)
 end
 
 --- Sets the model of a hologram
 -- @param string model string model path
 function hologram_methods:setModel(model)
-	local holo = getholo(self)
+	local holo = unwrap(self)
 	checkluatype(model, TYPE_STRING)
 	model = SF.NormalizePath(model)
 
@@ -502,7 +503,7 @@ end
 -- @param number? frame Optional int (Default 0) The starting frame number. Does nothing if nil
 -- @param number? rate Optional float (Default 1) Frame speed. Does nothing if nil
 function hologram_methods:setAnimation(animation, frame, rate)
-	local holo = getholo(self)
+	local holo = unwrap(self)
 	local ent_tbl = Ent_GetTable(holo)
 	checkpermission(instance, holo, "hologram.setRenderProperty")
 
@@ -532,7 +533,7 @@ end
 -- @param number mode Cull mode. 0 for counter clock wise, 1 for clock wise
 function hologram_methods:setCullMode(mode)
 	checkluatype(mode, TYPE_NUMBER)
-	local holo = getholo(self)
+	local holo = unwrap(self)
 	checkpermission(instance, holo, "entities.setRenderProperty")
 
 	Ent_GetTable(holo).SetCullMode(holo, mode==1)
@@ -543,9 +544,9 @@ end
 -- @shared
 -- @param number|nil group Render group. If unset, the engine will decide the render group based on the entity's materials. Can be RENDERGROUP.OPAQUE RENDERGROUP.TRANSLUCENT RENDERGROUP.BOTH RENDERGROUP.VIEWMODEL RENDERGROUP.VIEWMODEL.TRANSLUCENT RENDERGROUP.OPAQUE.BRUSH
 function hologram_methods:setRenderGroup(group)
-	local holo = getholo(self)
+	local holo = unwrap(self)
 	checkpermission(instance, holo, "entities.setRenderProperty")
-	
+
 	if group then
 		checkluatype(group, TYPE_NUMBER)
 		if not SF.allowedRenderGroups[group] then SF.Throw("Invalid rendergroup!") end
@@ -560,7 +561,7 @@ end
 -- @param number effect The effects to add. See EF Enums
 function hologram_methods:addEffects(effect)
 	checkluatype(effect, TYPE_NUMBER)
-	local holo = getholo(self)
+	local holo = unwrap(self)
 	checkpermission(instance, holo, "entities.setRenderProperty")
 
 	Ent_AddEffects(holo, effect)
@@ -571,7 +572,7 @@ end
 -- @param number effect The effects to remove. See EF Enums
 function hologram_methods:removeEffects(effect)
 	checkluatype(effect, TYPE_NUMBER)
-	local holo = getholo(self)
+	local holo = unwrap(self)
 	checkpermission(instance, holo, "entities.setRenderProperty")
 
 	Ent_RemoveEffects(holo, effect)
@@ -581,7 +582,7 @@ end
 -- @shared
 function hologram_methods:remove()
 	if CLIENT and instance.data.render.isRendering then SF.Throw("Cannot remove while in rendering hook!", 2) end
-	local holo = getholo(self)
+	local holo = unwrap(self)
 	checkpermission(instance, holo, "hologram.create")
 
 	entList:remove(holo)

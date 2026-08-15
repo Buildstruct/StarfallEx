@@ -19,13 +19,13 @@ SF.RegisterType("NextBot", false, true, FindMetaTable("NextBot"), "Entity")
 SF.RegisterLibrary("nextbot")
 
 registerprivilege("nextbot.create", "Create nextbot", "Allows the user to create nextbots.")
-registerprivilege("nextbot.remove", "Remove a nextbot", "Allows the user to remove a nextbot.", {entites = {}})
-registerprivilege("nextbot.setGotoPos", "Set nextbot goto pos", "Allows the user to set a vector pos for the nextbot to try and go to.", {entites = {}})
-registerprivilege("nextbot.setApproachPos", "Nextbot approach goal", "Allows the user to make a nextbot approach a specified Vector.", {entites = {}})
-registerprivilege("nextbot.removeApproachPos", "Nextbot approach goal", "Allows the user to remove the approach pos from a nextbot.", {entites = {}})
-registerprivilege("nextbot.removeGotoPos", "Remove nextbot goto pos", "Allows the user to remove the goto pos from a nextbot.", {entites = {}})
-registerprivilege("nextbot.playSequence", "Play nextbot sequence", "Allows the user to set an animation for the nextbot to play.", {entites = {}})
-registerprivilege("nextbot.startActivity", "Play nextbot activity", "Allows the user to set an activity for the nextbot to play.", {entites = {}})
+registerprivilege("nextbot.remove", "Remove a nextbot", "Allows the user to remove a nextbot.", {entities = {}})
+registerprivilege("nextbot.setGotoPos", "Set nextbot goto pos", "Allows the user to set a vector pos for the nextbot to try and go to.", {entities = {}})
+registerprivilege("nextbot.setApproachPos", "Nextbot approach goal", "Allows the user to make a nextbot approach a specified Vector.", {entities = {}})
+registerprivilege("nextbot.removeApproachPos", "Nextbot approach goal", "Allows the user to remove the approach pos from a nextbot.", {entities = {}})
+registerprivilege("nextbot.removeGotoPos", "Remove nextbot goto pos", "Allows the user to remove the goto pos from a nextbot.", {entities = {}})
+registerprivilege("nextbot.playSequence", "Play nextbot sequence", "Allows the user to set an animation for the nextbot to play.", {entities = {}})
+registerprivilege("nextbot.startActivity", "Play nextbot activity", "Allows the user to set an activity for the nextbot to play.", {entities = {}})
 registerprivilege("nextbot.faceTowards", "Face nextbot towards", "Allows the user to make a nextbot face a position.", {entities = {}})
 registerprivilege("nextbot.setRunAct", "Set nextbot run activity", "Allows the user to set nextbot's run animation.", {entities = {}})
 registerprivilege("nextbot.setIdleAct", "Set nextbot idle activity", "Allows the user to set nextbot's idle animation.", {entities = {}})
@@ -85,8 +85,8 @@ end)
 
 --- Creates a customizable NextBot
 -- @server
--- @param Vector spawnpos The position the nextbot will be spawned at.
--- @param string model The model the nextbot will use.
+-- @param Vector pos The position the nextbot will be spawned at.
+-- @param string mdl The model the nextbot will use.
 -- @return NextBot The nextbot.
 function nextbot_library.create(pos, mdl)
 	checkpermission(instance, nil, "nextbot.create")
@@ -128,12 +128,36 @@ function nextbot_library:remove()
 	entList:remove(nb)
 end
 
---- Checks if a user can spawn anymore nextbots.
+--- Checks if you can spawn any more nextbots
 -- @server
--- @return boolean True if user can spawn nextbots, False if not.
+-- @return boolean Returns true if you can spawn nextbots, false if not
 function nextbot_library.canSpawn()
 	if not SF.Permissions.hasAccess(instance, nil, "nextbot.create") then return false end
 	return entList:check(instance.player) > 0
+end
+
+--- Checks how many nextbots can be spawned
+-- @server
+-- @return number Number of nextbots able to be spawned
+function nextbot_library.nextbotsLeft()
+	if not SF.Permissions.hasAccess(instance,  nil, "nextbot.create") then return 0 end
+	return entList:check(instance.player)
+end
+
+--- Checks if you can spawn any more nextbot ragdolls
+-- @server
+-- @return boolean Returns true if you can spawn nextbot ragdolls, false if not
+function nextbot_library.canSpawnRagdoll()
+	if not SF.Permissions.hasAccess(instance, nil, "nextbot.ragdollOnDeath") then return false end
+	return SF.NextBotRagdolls:check(instance.player) > 0
+end
+
+--- Returns how many nextbot ragdolls you can spawn
+-- @server
+-- @return number Amount of nextbot ragdolls that can be spawned
+function nextbot_library.ragdollsLeft()
+	if not SF.Permissions.hasAccess(instance,  nil, "nextbot.ragdollOnDeath") then return 0 end
+	return SF.NextBotRagdolls:check(instance.player)
 end
 
 --- Makes the nextbot try to go to a specified position without using navmesh pathfinding (in a straight line).
@@ -169,16 +193,16 @@ end
 
 --- Makes the nextbot try to go to a specified position using navmesh pathfinding.
 -- @server
--- @param Vector gotopos The position the nextbot will continuosly try to go to.
+-- @param Vector pos The position the nextbot will continuosly try to go to.
 function nb_methods:setGotoPos(pos)
-		local nb = nbunwrap(self)
-		checkpermission(instance, nb, "nextbot.setGotoPos")
-		local goTo = Ent_GetTable(nb).goTo
-		if goTo then
-			goTo:SetUnpacked(pos[1], pos[2], pos[3])
-		else
-			Ent_GetTable(nb).goTo = vunwrap(pos)
-		end
+	local nb = nbunwrap(self)
+	checkpermission(instance, nb, "nextbot.setGotoPos")
+	local goTo = Ent_GetTable(nb).goTo
+	if goTo then
+		goTo:SetUnpacked(pos[1], pos[2], pos[3])
+	else
+		Ent_GetTable(nb).goTo = vunwrap(pos)
+	end
 end
 
 --- Removes the "go to" position from the NextBot.
@@ -199,7 +223,7 @@ end
 
 --- Makes the nextbot play a sequence. This takes priority over movement. Will go to set pos after animation plays.
 -- @server
--- @param string seqtoplay The name of the sequence to play.
+-- @param string seq The name of the sequence to play.
 function nb_methods:playSequence(seq)
 	checkluatype(seq, TYPE_STRING)
 	local nb = nbunwrap(self)
@@ -218,8 +242,8 @@ end
 
 --- Makes the nextbot face towards a specified position. Has to be called continuously to be effective.
 -- @server
--- @param Vector facepos Position to face towards.
-function nb_methods:faceTowards(pos)	
+-- @param Vector pos Position to face towards.
+function nb_methods:faceTowards(pos)
 	local nb = nbunwrap(self)
 	checkpermission(instance, nb, "nextbot.faceTowards")
 	Ent_GetTable(nb).loco:FaceTowards(vunwrap1(pos))
@@ -227,7 +251,7 @@ end
 
 --- Sets the activity the nextbot uses for running.
 -- @server
--- @param number runact The activity the nextbot will use.
+-- @param number act The activity the nextbot will use.
 function nb_methods:setRunAct(act)
 	checkluatype(act, TYPE_NUMBER)
 	local nb = nbunwrap(self)
@@ -247,7 +271,7 @@ end
 
 --- Sets the activity the nextbot uses for idling.
 -- @server
--- @param number runact The activity the nextbot will use.
+-- @param number act The activity the nextbot will use.
 function nb_methods:setIdleAct(act)
 	checkluatype(act, TYPE_NUMBER)
 	local nb = nbunwrap(self)
@@ -267,7 +291,7 @@ end
 
 --- Sets the nextbot's velocity. Seems to work only when used if nextbot is in air after using nextbot:jump()
 -- @server
--- @param Vector newvel Velocity.
+-- @param Vector vel Velocity.
 function nb_methods:setVelocity(vel)
 	local nb = nbunwrap(self)
 	checkpermission(instance, nb, "nextbot.setVelocity")
@@ -284,18 +308,18 @@ end
 
 --- Forces the nextbot to jump.
 -- @server
--- @param number? jumpAct The activity ID of the anim to play when jumping.
-function nb_methods:jump(jact)
-	if jact ~= nil then checkluatype(jact, TYPE_NUMBER) end
+-- @param number? act The activity ID of the anim to play when jumping.
+function nb_methods:jump(act)
+	if act ~= nil then checkluatype(act, TYPE_NUMBER) end
 	local nb = nbunwrap(self)
 	checkpermission(instance, nb, "nextbot.jump")
-	Ent_GetTable(nb).loco:Jump(jact)
+	Ent_GetTable(nb).loco:Jump(act)
 end
 
 --- Adds a callback function that will be run when this nextbot reaches a destination set by setApproachPos or setGotoPos.
 -- @server
--- @param string callbackid The unique ID this callback will use.
--- @param function callback The function to run when the NB reaches its destination.
+-- @param string id The unique ID this callback will use.
+-- @param function func The function to run when the NB reaches its destination.
 function nb_methods:addReachCallback(id, func)
 	checkluatype(id, TYPE_STRING)
 	checkluatype(func, TYPE_FUNCTION)
@@ -306,7 +330,7 @@ end
 
 --- Removes a reach callback function from the NextBot.
 -- @server
--- @param string callbackid The unique ID of the callback to remove.
+-- @param string id The unique ID of the callback to remove.
 function nb_methods:removeReachCallback(id)
 	checkluatype(id, TYPE_STRING)
 	local nb = nbunwrap(self)
@@ -316,8 +340,8 @@ end
 
 --- Adds a callback function that will be run when this nextbot dies.
 -- @server
--- @param string callbackid The unique ID this callback will use.
--- @param function callback The function to run when the NB dies. The arguments are: (Damage, Attacker, Inflictor, Damage Pos, Damage Force, Damage Type)
+-- @param string id The unique ID this callback will use.
+-- @param function func The function to run when the NB dies. The arguments are: (Damage, Attacker, Inflictor, Damage Pos, Damage Force, Damage Type)
 function nb_methods:addDeathCallback(id, func)
 	checkluatype(id, TYPE_STRING)
 	checkluatype(func, TYPE_FUNCTION)
@@ -328,7 +352,7 @@ end
 
 --- Removes a death callback function from the NextBot.
 -- @server
--- @param string callbackid The unique ID of the callback to remove.
+-- @param string id The unique ID of the callback to remove.
 function nb_methods:removeDeathCallback(id)
 	checkluatype(id, TYPE_STRING)
 	local nb = nbunwrap(self)
@@ -338,8 +362,8 @@ end
 
 --- Adds a callback function that will be run when this nextbot is injured.
 -- @server
--- @param string callbackid The unique ID this callback will use.
--- @param function callback The function to run when the NB gets injured. The arguments are: (Damage, Attacker, Inflictor, Damage Pos, Damage Force, Damage Type)
+-- @param string id The unique ID this callback will use.
+-- @param function func The function to run when the NB gets injured. The arguments are: (Damage, Attacker, Inflictor, Damage Pos, Damage Force, Damage Type)
 function nb_methods:addInjuredCallback(id, func)
 	checkluatype(id, TYPE_STRING)
 	checkluatype(func, TYPE_FUNCTION)
@@ -350,7 +374,7 @@ end
 
 --- Removes a injury callback function from the NextBot.
 -- @server
--- @param string callbackid The unique ID of the callback to remove.
+-- @param string id The unique ID of the callback to remove.
 function nb_methods:removeInjuredCallback(id)
 	checkluatype(id, TYPE_STRING)
 	local nb = nbunwrap(self)
@@ -360,8 +384,8 @@ end
 
 --- Adds a callback function that will be run when this nextbot lands on the ground.
 -- @server
--- @param string callbackid The unique ID this callback will use.
--- @param function callback The function to run when the NB lands on the ground. The arguments are: (The entity the NB landed on.)
+-- @param string id The unique ID this callback will use.
+-- @param function func The function to run when the NB lands on the ground. The arguments are: (The entity the NB landed on.)
 function nb_methods:addLandCallback(id, func)
 	checkluatype(id, TYPE_STRING)
 	checkluatype(func, TYPE_FUNCTION)
@@ -372,7 +396,7 @@ end
 
 --- Removes a landing callback function from the NextBot.
 -- @server
--- @param string callbackid The unique ID of the callback to remove.
+-- @param string id The unique ID of the callback to remove.
 function nb_methods:removeLandCallback(id)
 	checkluatype(id, TYPE_STRING)
 	local nb = nbunwrap(self)
@@ -382,8 +406,8 @@ end
 
 --- Adds a callback function that will be run when this nextbot leaves the ground.
 -- @server
--- @param string callbackid The unique ID this callback will use.
--- @param function callback The function to run when the NB leaves the ground. The arguments are: (The entity the NB "jumped" from.)
+-- @param string id The unique ID this callback will use.
+-- @param function func The function to run when the NB leaves the ground. The arguments are: (The entity the NB "jumped" from.)
 function nb_methods:addLeaveGroundCallback(id, func)
 	checkluatype(id, TYPE_STRING)
 	checkluatype(func, TYPE_FUNCTION)
@@ -394,7 +418,7 @@ end
 
 --- Removes a landing callback function from the NextBot.
 -- @server
--- @param string callbackid The unique ID of the callback to remove.
+-- @param string id The unique ID of the callback to remove.
 function nb_methods:removeLeaveGroundCallback(id)
 	checkluatype(id, TYPE_STRING)
 	local nb = nbunwrap(self)
@@ -404,8 +428,8 @@ end
 
 --- Adds a callback function that will be run when this nextbot gets ignited.
 -- @server
--- @param string callbackid The unique ID this callback will use.
--- @param function callback The function to run when the NB gets ignited.
+-- @param string id The unique ID this callback will use.
+-- @param function func The function to run when the NB gets ignited.
 function nb_methods:addIgniteCallback(id, func)
 	checkluatype(id, TYPE_STRING)
 	checkluatype(func, TYPE_FUNCTION)
@@ -416,7 +440,7 @@ end
 
 --- Removes a ignite callback function from the NextBot.
 -- @server
--- @param string callbackid The unique ID of the callback to remove.
+-- @param string id The unique ID of the callback to remove.
 function nb_methods:removeIgniteCallback(id)
 	checkluatype(id, TYPE_STRING)
 	local nb = nbunwrap(self)
@@ -426,8 +450,8 @@ end
 
 --- Adds a callback function that will be run when the nextbot enters a new nav area.
 -- @server
--- @param string callbackid The unique ID this callback will use.
--- @param function callback The function to run when the NB enters a new nav area. The arguments are: (Old Nav Area, New Nav Area)
+-- @param string id The unique ID this callback will use.
+-- @param function func The function to run when the NB enters a new nav area. The arguments are: (Old Nav Area, New Nav Area)
 function nb_methods:addNavChangeCallback(id, func)
 	checkluatype(id, TYPE_STRING)
 	checkluatype(func, TYPE_FUNCTION)
@@ -438,7 +462,7 @@ end
 
 --- Removes a nav area change callback function from the NextBot.
 -- @server
--- @param string callbackid The unique ID of the callback to remove.
+-- @param string id The unique ID of the callback to remove.
 function nb_methods:removeNavChangeCallback(id)
 	checkluatype(id, TYPE_STRING)
 	local nb = nbunwrap(self)
@@ -448,8 +472,8 @@ end
 
 --- Sets a callback function that will be run when this nextbot touches another entity. Only 1 per NB. Setting a new callback will replace the old one.
 -- @server
--- @param string callbackid The unique ID this callback will use.
--- @param function callback The function to run when the NB touches another entity. The arguments are: (The entity the NB touched.)
+-- @param string id The unique ID this callback will use.
+-- @param function func The function to run when the NB touches another entity. The arguments are: (The entity the NB touched.)
 function nb_methods:addContactCallback(id, func)
 	checkluatype(id, TYPE_STRING)
 	checkluatype(func, TYPE_FUNCTION)
@@ -460,7 +484,7 @@ end
 
 --- Removes the contact callback function from the NextBot if present.
 -- @server
--- @param string callbackid The unique ID of the callback to remove.
+-- @param string id The unique ID of the callback to remove.
 function nb_methods:removeContactCallback(id)
 	checkluatype(id, TYPE_STRING)
 	local nb = nbunwrap(self)
@@ -468,9 +492,31 @@ function nb_methods:removeContactCallback(id)
 	nb.ContactCallbacks:remove(id)
 end
 
+--- Adds a callback function that will be run when the nextbot create a ragdoll. Note: this will be called only if nb:ragdollOnDeath() is set to True
+-- @server
+-- @param string id The unique ID this callback will use.
+-- @param function func The function to run when the NB create a ragdoll. The arguments are: (The ragdoll entity the NB created.)
+function nb_methods:addRagdollCreationCallback(id, func)
+	checkluatype(id, TYPE_STRING)
+	checkluatype(func, TYPE_FUNCTION)
+	local nb = nbunwrap(self)
+	checkpermission(instance, nb, "nextbot.addRagdollCreationCallback")
+	nb.RagdollCreationCallbacks:add(id, func)
+end
+
+--- Removes the ragdoll creation callback function from the NextBot if present.
+-- @server
+-- @param string id The unique ID of the callback to remove.
+function nb_methods:removeRagdollCreationCallback(id)
+	checkluatype(id, TYPE_STRING)
+	local nb = nbunwrap(self)
+	checkpermission(instance, nb, "nextbot.removeRagdollCreationCallback")
+	nb.RagdollCreationCallbacks:remove(id)
+end
+
 --- Enable or disable ragdolling on death for the NextBot.
 -- @server
--- @param boolean ragdollondeath Whether the nextbot should ragdoll on death.
+-- @param boolean bool Whether the nextbot should ragdoll on death.
 function nb_methods:ragdollOnDeath(bool)
 	checkluatype(bool, TYPE_BOOL)
 	local nb = nbunwrap(self)
@@ -480,7 +526,7 @@ end
 
 --- Sets the move speed of the NextBot.
 -- @server
--- @param number newmovespeed NB's new move speed. Default is 200.
+-- @param number val NB's new move speed. Default is 200.
 function nb_methods:setMoveSpeed(val)
 	checkluatype(val, TYPE_NUMBER)
 	local nb = nbunwrap(self)
@@ -492,14 +538,14 @@ end
 --- Gets the move speed of the NextBot.
 -- @server
 -- @return number NB's move speed.
-function nb_methods:getMoveSpeed()	
+function nb_methods:getMoveSpeed()
 	local nb = nbunwrap(self)
 	return nb.MoveSpeed
 end
 
 --- Sets the acceleration speed of the NextBot.
 -- @server
--- @param number newaccel NB's new acceleration. Default is 400
+-- @param number val NB's new acceleration. Default is 400
 function nb_methods:setAcceleration(val)
 	checkluatype(val, TYPE_NUMBER)
 	local nb = nbunwrap(self)
@@ -517,7 +563,7 @@ end
 
 --- Sets the deceleration speed of the NextBot.
 -- @server
--- @param number newaccel NB's new deceleration. Default is 400
+-- @param number val NB's new deceleration. Default is 400
 function nb_methods:setDeceleration(val)
 	checkluatype(val, TYPE_NUMBER)
 	local nb = nbunwrap(self)
@@ -543,7 +589,7 @@ end
 
 --- Sets the max rate at which the NextBot can visually rotate. This will not affect moving or pathing.
 -- @server
--- @param number newmaxyawrate Desired new maximum yaw rate
+-- @param number val Desired new maximum yaw rate
 function nb_methods:setMaxYawRate(val)
 	checkluatype(val, TYPE_NUMBER)
 	local nb = nbunwrap(self)
@@ -561,7 +607,7 @@ end
 
 --- Sets the gravity of the NextBot.
 -- @server
--- @param number newgravity NB's new gravity. Default is 1000
+-- @param number val NB's new gravity. Default is 1000
 function nb_methods:setGravity(val)
 	checkluatype(val, TYPE_NUMBER)
 	local nb = nbunwrap(self)
@@ -571,7 +617,7 @@ end
 
 --- Sets the height the nextbot is scared to fall from.
 -- @server
--- @param number newdeathdropheight New height nextbot is afraid of. Default is 200.
+-- @param number val New height nextbot is afraid of. Default is 200.
 function nb_methods:setDeathDropHeight(val)
 	checkluatype(val, TYPE_NUMBER)
 	local nb = nbunwrap(self)
@@ -589,7 +635,7 @@ end
 
 --- Sets the max height the bot can step up.
 -- @server
--- @param number stepheight Height (default is 18)
+-- @param number val Height (default is 18)
 function nb_methods:setStepHeight(val)
 	checkluatype(val, TYPE_NUMBER)
 	local nb = nbunwrap(self)
@@ -623,18 +669,18 @@ end
 
 --- Returns whether this nextbot can reach and/or traverse/move in given NavArea.
 -- @server
--- @param NavArea NavArea to check.
+-- @param NavArea nav NavArea to check.
 -- @return boolean Whether this nextbot can traverse given NavArea.
 function nb_methods:isAreaTraversable(nav)
 	local nb = nbunwrap(self)
 	local unav = navunwrap(nav)
-	
+
 	return Ent_GetTable(nb).loco:IsAreaTraversable(unav)
 end
 
 --- Sets whether the Nextbot is allowed try to to avoid obstacles or not. This is used during path generation. Works similarly to nb_allow_avoiding convar. By default bots are allowed to try to avoid obstacles.
 -- @server
--- @param boolean avoidallowed Whether this bot should be allowed to try to avoid obstacles.
+-- @param boolean val Whether this bot should be allowed to try to avoid obstacles.
 function nb_methods:setAvoidAllowed(val)
 	checkluatype(val, TYPE_BOOL)
 	local nb = nbunwrap(self)
@@ -652,7 +698,7 @@ end
 
 --- Sets whether the Nextbot is allowed to climb or not. This is used during path generation. Works similarly to nb_allow_climbing convar. By default bots are allowed to climb.
 -- @server
--- @param boolean climballowed Whether this bot should be allowed to climb.
+-- @param boolean val Whether this bot should be allowed to climb.
 function nb_methods:setClimbAllowed(val)
 	checkluatype(val, TYPE_BOOL)
 	local nb = nbunwrap(self)
@@ -670,7 +716,7 @@ end
 
 --- Sets whether the Nextbot is allowed to jump gaps or not. This is used during path generation. Works similarly to nb_allow_gap_jumping convar. By default bots are allowed to jump gaps.
 -- @server
--- @param boolean jumpgapsallowed Whether this bot should be allowed to jump gaps.
+-- @param boolean val Whether this bot should be allowed to jump gaps.
 function nb_methods:setJumpGapsAllowed(val)
 	checkluatype(val, TYPE_BOOL)
 	local nb = nbunwrap(self)
@@ -688,7 +734,7 @@ end
 
 --- Sets the height of the bot's jump
 -- @server
--- @param number jumpheight Height (default is 58)
+-- @param number val Height (default is 58)
 function nb_methods:setJumpHeight(val)
 	checkluatype(val, TYPE_NUMBER)
 	local nb = nbunwrap(self)

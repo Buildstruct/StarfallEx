@@ -149,7 +149,6 @@ function game_library.getWorld()
 end
 
 --- Returns a table with keys that are condensed model path names and value identifiers of said paths
--- @shared
 -- @return table List of valid playermodels
 function game_library.getPlayerModels()
 	local ret = {}
@@ -157,6 +156,14 @@ function game_library.getPlayerModels()
 		ret[k] = v
 	end
 	return ret
+end
+
+--- Returns the wind's velocity at a given position, as influenced by current map's env_wind entities
+-- @param Vector? pos Optional position to get wind speed at. If specified, wind controllers with windradius other than -1 will be taken into account, if the point is within their radius. If omitted, only the global wind controller will be used (if one exists). This argument will be ignored on client-side and will be treated as nil because the position of env_wind is not currently networked to clients
+-- @return Vector The current wind velocity at a given position
+function game_library.getWindSpeed(pos)
+	if pos ~= nil then pos = vunwrap1(pos) end
+	return vwrap(game.GetWindSpeed(pos))
 end
 
 --- Given a 64bit SteamID will return a STEAM_0: style Steam ID
@@ -173,6 +180,12 @@ game_library.steamIDFrom64 = util.SteamIDFrom64
 -- @return string 64bit Steam ID
 game_library.steamIDTo64 = util.SteamIDTo64
 
+--- Returns the name of the currently running gamemode
+-- @name game_library.getActiveGamemode
+-- @class function
+-- @return string The name of the active gamemode
+game_library.getActiveGamemode = engine.ActiveGamemode
+
 if SERVER then
 
 	--- Applies explosion damage to all entities in the specified radius
@@ -182,21 +195,22 @@ if SERVER then
 	-- @param number damage The amount of damage to be applied
 	function game_library.blastDamage(damageOrigin, damageRadius, damage)
 		checkpermission(instance, nil, "game.blastDamage")
-		util.BlastDamage(instance.entity, instance.player, vunwrap1(damageOrigin), math.Clamp(damageRadius, 0, 1500), damage)
+		local attacker = (instance.player == SF.Superuser) and instance.entity or instance.player
+		util.BlastDamage(instance.entity, attacker, vunwrap1(damageOrigin), math.Clamp(damageRadius, 0, 1500), damage)
 	end
 
 	--- Fires a bullet. Bullet made with this function will not have any tracer, you will have to make them yourself.
 	-- @server
 	-- @param Vector src The position to fire the bullets from.
-	-- @param Vector Dir The fire direction.
+	-- @param Vector dir The fire direction.
 	-- @param number? damage The damage dealt by the bullet. Default: (1-100)
 	-- @param number? num The amount of bullets to fire. Default: (1-40)
 	-- @param number? force The force of the bullets. Default: (0-100)
 	-- @param number? distance Maximum distance the bullet can travel.
-	-- @param Vector? Spread The spread, only x and y are needed.
+	-- @param Vector? spread The spread, only x and y are needed.
 	-- @param number? hullSize The hull size of the bullet. Default: (0-10)
 	-- @param Entity? ignoreEntity The entity that the bullet will ignore when it will be shot.
-	-- @param function? callback Function to be called with attacker, traceResult after the bullet was fired but before the damage is applied (the callback is called even if no damage is applied).
+	-- @param function? cb Function to be called with attacker, traceResult after the bullet was fired but before the damage is applied (the callback is called even if no damage is applied).
 	function game_library.bulletDamage(src, dir, damage, num, force, distance, spread, hullSize, ignoreEntity, cb)
 		checkpermission(instance, nil, "game.bulletDamage")
 		src = vunwrap1(src)
@@ -221,7 +235,7 @@ if SERVER then
 		local BulletInfo = {
 			Src = src,
 			Dir = dir,
-			Attacker = instance.player,
+			Attacker = (instance.player == SF.Superuser) and instance.entity or instance.player,
 			Damage = damage,
 			Force = force,
 			Distance = distance,
@@ -313,6 +327,20 @@ else
 	-- @return boolean If currently timing out
 	-- @return number Time since the connection started to timeout
 	game_library.isTimingOut = GetTimeoutInfo
+
+	--- Returns true if the game is currently recording a demo file (.dem)
+	-- @name game_library.isRecordingDemo
+	-- @client
+	-- @class function
+	-- @return boolean True if recording a demo
+	game_library.isRecordingDemo = engine.IsRecordingDemo
+
+	--- Returns whether the game menu overlay (escape/main menu) is open or not
+	-- @name game_library.isPauseMenuVisible
+	-- @client
+	-- @class function
+	-- @return boolean True if the game UI is visible
+	game_library.isPauseMenuVisible = gui.IsGameUIVisible
 
 end
 

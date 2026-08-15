@@ -99,7 +99,7 @@ function SF.DefaultCode()
 	elseif file.Exists("starfall/default.lua", "DATA") then
 		return file.Read("starfall/default.lua", "DATA")
 	else
-		code = string.gsub(defaultCode, "@author", "@author "..string.gsub(LocalPlayer():Nick(), "[^%w%s%p_]", ""))
+		local code = string.gsub(defaultCode, "@author", "@author "..string.gsub(LocalPlayer():Nick(), "[^%w%s%p_]", ""))
 		file.Write("starfall/default.txt", code)
 		return code
 	end
@@ -456,7 +456,7 @@ function Editor:GetLastTab() return self.LastTab end
 
 function Editor:SetLastTab(Tab) self.LastTab = Tab end
 
-function Editor:GetActiveTab() 
+function Editor:GetActiveTab()
 	local tab = self.C.TabHolder:GetActiveTab()
 	if tab then return tab end
 	self:CreateTab()
@@ -882,7 +882,7 @@ function Editor:InitComponents()
 
 	self.C.Menu:Dock(TOP)
 	self.C.TabHolder:Dock(FILL)
-	self.C.TabHolder.tabScroller:DockMargin(0, 0, 3, 0) -- We dont want default offset
+	self.C.TabHolder.tabScroller:DockMargin(0, 0, 3, 0) -- We don't want default offset
 	self.C.TabHolder.tabScroller:SetOverlap(-1)
 	self.C.TabHolder:SetPadding(0)
 	self.C.Menu.Paint = function(_, w, h)
@@ -1135,7 +1135,7 @@ function Editor:GetSettings()
 	AddCategory(themesPanel, "Themes", "icon16/page_white_paintbrush.png", "Theme settings.")
 
 	----- Tab settings
-	for k, v in pairs(SF.Editor.TabHandlers) do -- We let TabHandlers register their settings but only if they are current editor or arent editor at all
+	for k, v in pairs(SF.Editor.TabHandlers) do -- We let TabHandlers register their settings but only if they are current editor or aren't editor at all
 		if v.RegisterSettings and (not v.IsEditor or (v.IsEditor and SF.Editor.CurrentTabHandler:GetString() == k)) then
 			AddCategory(v:RegisterSettings())
 		end
@@ -1213,7 +1213,7 @@ function Editor:CreateThemesPanel()
 					local parsed, strId, error = SF.Editor.Themes.ParseTextMate(body)
 
 					if not parsed then
-						Derma_Message("A problem occured during parsing the XML file: " .. error, "SF Themes", "Close")
+						Derma_Message("A problem occurred during parsing the XML file: " .. error, "SF Themes", "Close")
 						return
 					end
 
@@ -1234,7 +1234,7 @@ function Editor:CreateThemesPanel()
 				local parsed, strId, error = SF.Editor.Themes.ParseTextMate(text)
 
 				if not parsed then
-					Derma_Message("A problem occured during parsing the XML file: " .. error, "SF Themes", "Close")
+					Derma_Message("A problem occurred during parsing the XML file: " .. error, "SF Themes", "Close")
 					return
 				end
 
@@ -1416,16 +1416,19 @@ function Editor:Validate(gotoerror)
 	end
 
 	local code = self:GetCode()
-	if #code < 1 then return true end -- We wont validate empty scripts
-	local err = SF.CompileString(code , "Validation", false)
+	if #code < 1 then return true end -- We won't validate empty scripts
+	local ok, err = pcall(function()
+		SF.PreprocessData("Validation", code):Preprocess()
+	end)
+	if ok then err = SF.CompileString(code, "Validation", false) end
 	local success = not isstring(err)
 	local row, message
 	if success then
 		self:SetValidatorStatus("Validation successful!", 0, 110, 20, 255)
 	else
-		row = tonumber(err:match("%d+")) or 0
-		message = err:match(": .+$")
-		message = message and message:sub(3) or "Unknown"
+		row, message = err:match(":(%d+)[,:] (.+)$")
+		row = tonumber(row) or 0
+		message = message or "Unknown"
 		message = "Line "..row..":"..message
 		self.C.Val:SetBGColor(110, 0, 20, 255)
 		self.C.Val:SetText(" " .. message)
@@ -1661,7 +1664,7 @@ function Editor:LoadFile(Line, forcenewtab)
 		str = SF.Editor.normalizeCode(str)
 		self:OpenCode(Line, str, str, forcenewtab)
 	else
-		SF.AddNotify(LocalPlayer(), "Erroring opening file: " .. Line, "ERROR", 7, "ERROR1")
+		SF.AddNotify(LocalPlayer(), "Error opening file: " .. Line, "ERROR", 7, "ERROR1")
 	end
 end
 
@@ -1674,7 +1677,7 @@ end
 ---Reloads the tab associated to the file at `filepath`, if there is one.
 ---@param tabIndex number The index of the tab to reload
 ---@param interactive boolean If the file has unsaved changed and interactive is true
----then prompt the user to overwrite the current unsaved changes, otherwise dont reload the file.
+---then prompt the user to overwrite the current unsaved changes, otherwise don't reload the file.
 function Editor:ReloadTab(tabIndex, interactive)
 	local activeTabIndex = self:GetActiveTabIndex()
 	local tab = self:GetTab(tabIndex)
@@ -1882,7 +1885,7 @@ end
 vgui.Register("StarfallEditorFrame", Editor, "DFrame")
 
 -- Starfall Users
-PANEL  = {}
+local PANEL = {}
 
 function PANEL:UpdatePlayers(players)
 	local sortedplayers = {}
@@ -1904,7 +1907,7 @@ function PANEL:UpdatePlayers(players)
 		header:SetBackgroundColor(Color(0,0,0,20))
 		header:SetTooltip(tbl.name)
 
-		local blocked = SF.BlockedUsers:isBlocked(steamid)
+		local blocked = SF.BlockedUsers:contains(steamid)
 		local button = vgui.Create("StarfallButton", header)
 		button.active = blocked
 		button:SetText(blocked and "Unblock" or "Block")
@@ -1913,9 +1916,9 @@ function PANEL:UpdatePlayers(players)
 
 		button.DoClick = function()
 			if blocked then
-				SF.BlockedUsers:unblock(steamid)
+				SF.BlockedUsers:remove(steamid)
 			else
-				SF.BlockedUsers:block(steamid)
+				SF.BlockedUsers:add(steamid)
 			end
 			blocked = not blocked
 			button:SetText(blocked and "Unblock" or "Block")
@@ -2026,7 +2029,7 @@ function PANEL:UpdatePlayers(players)
 			local svtotal = 0
 			local cltotal = 0
 			for instance, _ in pairs(SF.playerInstances[ply]) do
-				svtotal = svtotal + (instance.entity:IsValid() and instance.entity:GetNWInt("CPUus") or 0)
+				svtotal = svtotal + (instance.entity:IsValid() and instance.entity:GetCPUus("CPUus") or 0)
 				cltotal = cltotal + instance.perf.cpuAverage
 			end
 			cpuServerText:SetText(string.format("SV CPU: %3.1f us", svtotal))
@@ -2040,7 +2043,7 @@ end
 function PANEL:CheckPlayersChanged()
 	local players = {}
 	for k, v in pairs(player.GetAll()) do
-		if not table.IsEmpty(SF.playerInstances[v]) or SF.BlockedUsers:isBlocked(v:SteamID()) then
+		if not table.IsEmpty(SF.playerInstances[v]) or SF.BlockedUsers:contains(v:SteamID()) then
 			players[v] = true
 		end
 	end

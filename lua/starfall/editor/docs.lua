@@ -210,6 +210,7 @@ local parseAttributes = {
 				type = type,
 				value = value -- We need this in case the type isn't valid. Will be deleted after.
  			}
+			parsing.lastAttrType = "params"
 		else
 			ErrorNoHalt("Invalid param doc (" .. value .. ") in file: " .. curfile .. "\n")
 		end
@@ -224,6 +225,7 @@ local parseAttributes = {
 				description = description,
 				value = value
 			}
+			parsing.lastAttrType = "returns"
 		else
 			ErrorNoHalt("Invalid return doc (" .. value .. ") in file: " .. curfile .. "\n")
 		end
@@ -234,22 +236,23 @@ local parseAttributes = {
 			local t = parsing.fields
 			if not t then t = {} parsing.fields = t end
 			t[#t+1] = {name = name, description = description}
+			parsing.lastAttrType = "fields"
 		else
 			ErrorNoHalt("Invalid field doc (" .. value .. ") in file: " .. curfile .. "\n")
 		end
 	end,
 
-	--- Overrides the [src] link which would normally go to the SF github.
+	--- Overrides the [src] link which would normally go to the SF GitHub.
 	-- This would be for addons extending SF and wanting to link to their repos.
 	-- The links would be something like https://github.com/User/Repo/.../file.lua
 	-- It will be a direct link to a page and the line number that SF finds will be appended to it.
-	-- Only github links are allowed.
+	-- Only GitHub links are allowed.
 	["src"] = function(parsing, value)
 		local link = string_match(value, "https://github.com/(.+)")
 		if link then
 			parsing.path = link .. string_match(parsing.path, "(#L[%d%-]+)")
 		else
-			ErrorNoHalt("Invalid src override (" .. value .. ") in file: " .. curfile .. ", make sure it's a github link!\n")
+			ErrorNoHalt("Invalid src override (" .. value .. ") in file: " .. curfile .. ", make sure it's a GitHub link!\n")
 		end
 	end
 }
@@ -261,12 +264,23 @@ local function parse(parsing, data, lineN)
 		local parser = parseAttributes[attribute]
 		if parser then
 			parser(parsing, value, lineN)
+			if attribute ~= "param" and attribute ~= "return" and attribute ~= "field" then
+				parsing.lastAttrType = nil
+			end
 		else
 			ErrorNoHalt("Invalid attribute (" .. attribute .. ") in file: " .. curfile .. "\n")
 		end
 	else
-		local t = parsing.description
-		t[#t+1] = data
+		-- Append to the most recently added param/return/field description
+		local lastType = parsing.lastAttrType
+		local t = lastType and parsing[lastType]
+		if t and #t > 0 then
+			local entry = t[#t]
+			entry.description = entry.description .. "\n" .. data
+		else
+			local desc = parsing.description
+			desc[#desc+1] = data
+		end
 	end
 end
 

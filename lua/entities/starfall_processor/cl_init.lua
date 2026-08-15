@@ -2,9 +2,8 @@ include("shared.lua")
 
 DEFINE_BASECLASS("base_gmodentity")
 
-local Ent_GetTable = FindMetaTable("Entity").GetTable
-local Ent_IsValid = FindMetaTable("Entity").IsValid
-local Ent_IsWorld = FindMetaTable("Entity").IsWorld
+local ENTMETA = FindMetaTable("Entity")
+local Ent_IsValid, Ent_IsWorld, Ent_GetTable = ENTMETA.IsValid, ENTMETA.IsWorld, ENTMETA.GetTable
 
 function ENT:Initialize()
 	self.name = "Generic ( No-Name )"
@@ -27,19 +26,20 @@ end
 
 function ENT:GetOverlayText()
 	local ent_tbl = Ent_GetTable(self)
-	local state = self:GetNWInt("State", 1)
+	local state = ent_tbl.GetCPUstate(self)
+	local instance = ent_tbl.instance
 
 	local clientstr, serverstr
-	if ent_tbl.instance then
-		local bufferAvg = ent_tbl.instance.perf.cpuAverage
-		clientstr = tostring(math.Round(bufferAvg * 1000000)) .. "us. (" .. tostring(math.floor(bufferAvg / ent_tbl.instance.perf.cpuLimit * 100)) .. "%)"
+	if instance then
+		local bufferAvg = instance.perf.cpuAverage
+		clientstr = tostring(math.Round(bufferAvg * 1000000)) .. "us. (" .. tostring(math.floor(bufferAvg / instance.perf.cpuLimit * 100)) .. "%)"
 	elseif ent_tbl.error then
 		clientstr = "Errored / Terminated"
 	else
 		clientstr = "None"
 	end
-	if state == 1 then
-		serverstr = tostring(self:GetNWInt("CPUus", 0)) .. "us. (" .. tostring(self:GetNWFloat("CPUpercent", 0)) .. "%)"
+	if state == 0 or state == 1 then
+		serverstr = tostring(ent_tbl.GetCPUus(self)) .. "us. (" .. tostring(ent_tbl.GetCPUpercent(self)) .. "%)"
 	elseif state == 2 then
 		serverstr = "Errored"
 	else
@@ -128,15 +128,37 @@ else
 	end
 end
 
+-- For 'sf_notify_cl 2': messages matching these substrings won't show notifications
+local silenced_messages = {
+	"CPU usage exceeded",
+	"RAM usage exceeded",
+	"User has blocked this player",
+	"Killed by user",
+	"Blocked by user",
+}
+
+-- Returns true if the error message should trigger a notification at 'sf_notify_cl 2'
+local function isNotifiable(message)
+	for i = 1, #silenced_messages do
+		if string.find(message, silenced_messages[i], 1, true) then return end
+	end
+	return true
+end
+
 hook.Add("StarfallError", "StarfallErrorReport", function(_, owner, client, main_file, message, traceback, should_notify)
 	if not Ent_IsValid(owner) then return end
 	local local_player = LocalPlayer()
 	if owner == local_player then
+		local notify_level = SF.CvarNotifyErrors:GetInt()
 		if Ent_IsWorld(client) or client == owner then
-			SF.AddNotify(owner, message, "ERROR", 7, "ERROR1")
+			if notify_level ~= 0 then
+				SF.AddNotify(owner, message, "ERROR", 7, "ERROR1")
+			end
 		elseif client then
 			if should_notify then
-				SF.AddNotify(owner, string.format("Starfall '%s' errored for player %s", main_file, client:Nick()), "ERROR", 7, "SILENT")
+				if notify_level >= 2 and (notify_level == 3 or isNotifiable(message)) then
+					SF.AddNotify(owner, string.format("Starfall '%s' errored for player %s", main_file, client:Nick()), "ERROR", 7, "SILENT")
+				end
 				print(message)
 			else
 				print(string.format("Starfall '%s' errored for player %s: %s", main_file, client:Nick(), message))
@@ -195,7 +217,7 @@ net.Receive("starfall_processor_used", function(len)
 	end
 end)
 
-SF.BlockedUsers = SF.BlockedList("user", "running clientside starfall code", "sf_blockedusers.txt",
+SF.BlockedUsers = SF.SavedUserList("blocked_users", "blocked users from running clientside starfall code", "sf_blockedusers.txt",
 	function(steamid)
 		local ply = player.GetBySteamID(steamid)
 		if not ply then return end

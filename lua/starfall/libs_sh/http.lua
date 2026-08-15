@@ -14,6 +14,12 @@ local requests = SF.LimitObject("http_requests", "http request", 3, "The number 
 -- @libtbl http_library
 SF.RegisterLibrary("http")
 
+local headerWhitelist = SF.StringRestrictor(false)
+-- Feel free to pull-request if you need something
+for _, v in ipairs{"accept", "accept-language", "accept-encoding", "authorization", "content-type", "content-length", "x-goog-api-key"} do
+	headerWhitelist:addWhitelistEntry(string.PatternSafe(v))
+end
+
 return function(instance)
 local checkpermission = instance.player ~= SF.Superuser and SF.Permissions.check or function() end
 
@@ -42,13 +48,13 @@ function http_library.getActiveRequests()
 end
 
 --- Gets how many get/post operations can be in progress at the same time
--- @return number Maximum amount of concurrent active HTTP get/post requests 
+-- @return number Maximum amount of concurrent active HTTP get/post requests
 function http_library.getMaximumRequests()
 	return requests.max
 end
 
 --- Runs a new http GET request
--- @param string url Http target url
+-- @param string url HTTP resource URL
 -- @param function callbackSuccess The function to be called on request success, taking the arguments body (string), length (number), headers (table) and code (number)
 -- @param function? callbackFail The function to be called on request fail, taking the failing reason as an argument
 -- @param table? headers GET headers to be sent
@@ -74,7 +80,7 @@ function http_library.get(url, callbackSuccess, callbackFail, headers)
 end
 
 --- Runs a new http POST request
--- @param string url Http target url
+-- @param string url HTTP resource URL
 -- @param table? payload Optional POST payload to be sent, can be both table and string. When table is used, the request body is encoded as application/x-www-form-urlencoded
 -- @param function? callbackSuccess Optional function to be called on request success, taking the arguments body (string), length (number), headers (table) and code (number)
 -- @param function? callbackFail Optional function to be called on request fail, taking the failing reason as an argument
@@ -138,6 +144,104 @@ function http_library.post(url, payload, callbackSuccess, callbackFail, headers)
 	HTTP(request)
 end
 
+local VALID_METHODS = {
+	GET = true,
+	POST = true,
+	HEAD = true,
+	PUT = true,
+	DELETE = true,
+	PATCH = true,
+	OPTIONS = true
+}
+
+--- Runs a new http request. Wraps HTTP() directly. Official documentation for each parameter can be found here: https://wiki.facepunch.com/gmod/Structures/HTTPRequest
+-- @param string url HTTP resource URL
+-- @param string method Request method, case insensitive. Possible values are: GET, POST, HEAD, PUT, DELETE, PATCH, OPTIONS
+-- @param function? success Function to be called on success, taking arguments code (number), body (string), and headers (table)
+-- @param function? failed Function to be called on failure, taking argument reason (string)
+-- @param string? body Body string for POST data. If set, will override parameters
+-- @param table? parameters KeyValue table for URL parameters. This is only applicable to the following request methods: GET, POST (sent in body, so if body is set, parameters are ignored), and HEAD
+-- @param string? type Content type for body. (Default: "text/plain; charset=utf-8")
+-- @param table? headers KeyValue table for headers
+-- @param number? timeout The timeout for the connection. Clamped between [0.1, 300]. (Default: 60)
+function http_library.request(url, method, success, failed, body, parameters, type, headers, timeout)
+	checkluatype(url, TYPE_STRING)
+	checkpermission(instance, url, "http.request")
+
+	checkluatype(method, TYPE_STRING)
+
+	if not VALID_METHODS[method] then
+		SF.Throw("Invalid http method", 2)
+	end
+
+	local request = {
+		url = url,
+		method = method
+	}
+
+	if type ~= nil then
+		checkluatype(type, TYPE_STRING)
+		request.type = type
+	end
+
+	if timeout ~= nil then
+		checkluatype(timeout, TYPE_NUMBER)
+		request.timeout = math.Clamp(timeout, 0.1, 300)
+	end
+
+	if body ~= nil then
+		checkluatype(body, TYPE_STRING)
+		request.body = body
+	end
+
+	if parameters ~= nil then
+		checkluatype(parameters, TYPE_TABLE)
+		request.parameters = {}
+
+		for k, v in pairs(parameters) do
+			if not isstring(k) or not isstring(v) then
+				SF.Throw("Request parameters can only contain string keys and string values", 2)
+			end
+			request.parameters[k] = v
+		end
+	end
+
+	if headers ~= nil then
+		checkluatype(headers, TYPE_TABLE)
+		request.headers = {}
+
+		for k, v in pairs(headers) do
+			if not isstring(k) or not isstring(v) then
+				SF.Throw("Headers can only contain string keys and string values", 2)
+			end
+
+			local k_low = string.lower(k)
+			if not headerWhitelist:check(k_low) then
+				SF.Throw("Header "..k.." is not whitelisted!", 2)
+			end
+
+			if k_low == "content-type" then
+				if request.type == nil then
+					request.type = v
+				end
+			else
+				request.headers[k] = v
+			end
+		end
+	end
+
+	if success ~= nil then checkluatype(success, TYPE_FUNCTION) end
+	if failed ~= nil then checkluatype(failed, TYPE_FUNCTION) end
+
+	request.success = runCallback(success)
+	request.failed = runCallback(failed)
+
+	requests:use(instance.player, 1)
+
+	if CLIENT then SF.HTTPNotify(instance.player, request.url) end
+	HTTP(request)
+end
+
 --- Converts data into base64 format or nil if the string is 0 length
 -- @name http_library.base64Encode
 -- @class function
@@ -158,7 +262,7 @@ end
 -- @return string The converted data
 http_library.base64Decode = util.Base64Decode
 
---- Encodes illegal url characters to be legal
+--- Encodes illegal URL characters to be legal
 -- @param string data The data to convert
 -- @return string The converted data
 function http_library.urlEncode(data)
@@ -170,7 +274,7 @@ function http_library.urlEncode(data)
 	return data
 end
 
---- Decodes the % escaped chars in a url
+--- Decodes the % escaped chars in a URL
 -- @param string data The data to convert
 -- @return string The converted data
 function http_library.urlDecode(data)
@@ -184,19 +288,19 @@ function http_library.urlDecode(data)
 	return data
 end
 
---- Converts a simple google drive url to a raw one
--- @param string url The url to convert
--- @return string The converted url
+--- Converts a simple Google Drive URL to a raw one
+-- @param string url The URL to convert
+-- @return string The converted URL
 function http_library.urlGoogleDriveToRaw(url)
 	checkluatype(url, TYPE_STRING)
 	if #url > 64e3 then SF.Throw("String exceeds length limit!", 2) end
-	local id = string.match(url, "https://drive%.google%.com/file/d/([^/]+)/view") or SF.Throw("Failed to parse google drive link!", 2)
+	local id = string.match(url, "https://drive%.google%.com/file/d/([^/]+)/view") or SF.Throw("Failed to parse Google Drive link!", 2)
 	return "https://drive.google.com/uc?export=download&id="..id
 end
 
---- Converts a regular dropbox url to a raw one
--- @param string url The url to convert
--- @return string The converted url
+--- Converts a regular Dropbox URL to a raw one
+-- @param string url The URL to convert
+-- @return string The converted URL
 function http_library.urlDropboxToRaw(url)
 	checkluatype(url, TYPE_STRING)
 	if #url > 64e3 then SF.Throw("String exceeds length limit!", 2) end
@@ -204,19 +308,19 @@ function http_library.urlDropboxToRaw(url)
 	return rawUrl
 end
 
---- Converts a github file url to a raw one
--- @param string url The url to convert
--- @return string The converted url
+--- Converts a GitHub file URL to a raw one
+-- @param string url The URL to convert
+-- @return string The converted URL
 function http_library.urlGithubToRaw(url)
 	checkluatype(url, TYPE_STRING)
 	if #url > 64e3 then SF.Throw("String exceeds length limit!", 2) end
-	
+
 	-- https://github.com/username/repo_name/tree/path_to_folder/anyfolder
 	-- https://github.com/username/repo_name/blob/path_to_file/hi.txt
 	local rawUrl, _ = string.gsub(url, "https://github%.com/", "https://raw.githubusercontent.com/")
 	rawUrl = string.gsub(rawUrl, "/blob/", "/", 1) -- files
 	rawUrl = string.gsub(rawUrl, "/tree/", "/", 1) -- folders
-	
+
 	return rawUrl
 end
 

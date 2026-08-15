@@ -189,19 +189,21 @@ pattern [[([%w-_]+)%.dzcdn%.net/(.+)]]
 -- https://tts.cyzon.us/tts?text=test
 pattern [[tts.cyzon.us/(.+)]]
 
--- Revolt
+-- Stoat
 --- Examples:
----  https://static.revolt.chat/emoji/mutant/1f440.svg?rev=3
----  https://autumn.revolt.chat/emojis/01G7J9RTHKEPJM8DM19TX35M8N
----  https://autumn.revolt.chat/attachments/mmCR_bFMLEfBAE8mweH2u4o9_x6DiDtU9JXoSbdvZE/live-bocchi-reaction.gif
-simple [[static.revolt.chat]]
-simple [[autumn.revolt.chat]]
-simple [[cdn.revoltusercontent.com]]
+---  https://cdn.stoatusercontent.com/attachments/mmCR_bFMLEfBAE8mweH2u4o9_x6DiDtU9JXoSbdvZE/live-bocchi-reaction.gif
+simple [[cdn.stoatusercontent.com]]
 
 -- Youtube Converter API
 --- Examples:
 ---  https://youtube.michaelbelgium.me/storage/5zrORMBb0-8.mp3
 simple [[youtube.michaelbelgium.me]]
+
+-- YTDLP Online
+--- Examples:
+---  https://ytdlp.online/api/v1/stream?command=--extract-audio%20--audio-format%20mp3%20--audio-quality%200%20--no-embed-subs%20--no-embed-thumbnail%20--no-embed-metadata%20-o%20%27%25(id)s.%25(ext)s%27%20https%3A%2F%2Fyoutu.be%2FqwW345rYInA&job_id=xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx
+---  https://ytdlp.online/download/qwW345rYInA.mp3
+simple [[ytdlp.online]]
 
 -- Nekoweb
 --- Examples:
