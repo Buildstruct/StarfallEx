@@ -83,11 +83,10 @@ local col_meta, cwrap, cunwrap = instance.Types.Color, instance.Types.Color.Wrap
 local ang_meta, awrap, aunwrap = instance.Types.Angle, instance.Types.Angle.Wrap, instance.Types.Angle.Unwrap
 local vec_meta, vwrap, vunwrap = instance.Types.Vector, instance.Types.Vector.Wrap, instance.Types.Vector.Unwrap
 
-local vunwrap1, aunwrap1, cunwrap1
+local vunwrap1, aunwrap1
 instance:AddHook("initialize", function()
 	vunwrap1 = vec_meta.QuickUnwrap1
 	aunwrap1 = ang_meta.QuickUnwrap1
-	cunwrap1 = col_meta.QuickUnwrap1
 end)
 
 local function is_cloaked_chain(ent)
@@ -109,9 +108,9 @@ end
 local EFFECT_MEMBERS = {
 	angles = EffectMember(angle_origin, "SetAngles", function(v) v=aunwrap1(v) checkvector(v) return v end),
 	attachment = EffectMember(0, "SetAttachment"),
-	color = EffectMember(color_white, "SetColor", cunwrap1),
+	color = EffectMember(0, "SetColor"),
 	damagetype = EffectMember(0, "SetDamageType"),
-	entindex = EffectMember(0, "SetEntIndex"),
+	entindex = SERVER and EffectMember(0, "SetEntIndex") or nil,
 	entity = EffectMember(NULL, "SetEntity", eunwrap),
 	flags = EffectMember(0, "SetFlags"),
 	hitbox = EffectMember(0, "SetHitBox"),
@@ -130,9 +129,9 @@ local EFFECT_MEMBERS = {
 -- @param table data The effect data table with keys:
 -- angles - Angle angle of the effect
 -- attachment - number Entity attachment id to attach to
--- color - Color The color to set the effect
+-- color - number The color to set the effect (This is an 8 bit color integer specific to the effect implementation)
 -- damagetype - number The damage type of the effect
--- entindex - number The entity index to set the effect to
+-- entindex - number The entity index to set the effect to (SERVER only)
 -- entity - Entity entity to set the effect to
 -- flags - number Flags to add to the effect
 -- hitbox - number The hitbox id of the effect
@@ -144,9 +143,11 @@ local EFFECT_MEMBERS = {
 -- scale - number The scale value of the effect
 -- start - Vector the start vector of the effect
 -- surfaceprop - number The surfaceprop id of the effect
-function effect_library.create(name, data)
+-- @param boolean? nofilter (Optional) Make the effect play for everyone, even in predicted hooks. Only affects Server-side effects.
+function effect_library.create(name, data, nofilter)
 	checkluatype(name, TYPE_STRING)
 	checkluatype(data, TYPE_TABLE)
+	if nofilter~=nil then checkluatype(nofilter, TYPE_BOOL) end
 	checkpermission(instance, nil, "effect.create")
 
 	if data.entity ~= nil and is_cloaked_chain(eunwrap(data.entity)) then
@@ -195,7 +196,7 @@ function effect_library.create(name, data)
 	if not ok then SF.Throw("Error setting member '"..settingMember.."': "..tostring(ret), 2) end
 
 	plyEffectBurst:use(instance.player, 1)
-	util.Effect(name, ret)
+	util.Effect(name, ret, true, nofilter)
 end
 
 --- Returns the number of effects that can still be created within the burst quota
