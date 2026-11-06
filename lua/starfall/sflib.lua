@@ -2037,12 +2037,135 @@ function SF.dumbTrace(entity, pos)
 	return dumbtrace
 end
 
-function SF.SanitizeTraceResult(instance, trace)
+local cloaked_frame = -1
+local cloaked_players
+local cloak_change_registered
+
+local function invalidate_cloak_cache()
+	cloaked_frame = -1
+	cloaked_players = nil
+end
+
+local function register_cloak_change()
+	if cloak_change_registered then return end
 	local BSA = _G.BSA
-	if not trace or not BSA or instance.player == SF.Superuser then return trace end
+	if not BSA or not BSA.Variables or not BSA.Variables.onchange then return end
+	BSA.Variables:onchange("bsa_cloak", function(_, name)
+		if name == "bsa_cloak" then
+			invalidate_cloak_cache()
+		end
+	end)
+	if BSA.Variables.onsync then
+		BSA.Variables:onsync("bsa_cloak", invalidate_cloak_cache)
+	end
+	cloak_change_registered = true
+end
+
+function SF.GetCloakedPlayers()
+	register_cloak_change()
+	local frame = FrameNumber()
+	if frame ~= cloaked_frame then
+		cloaked_frame = frame
+		local BSA = _G.BSA
+		if not BSA or not BSA.Players or not BSA.Players.IsCloak then
+			cloaked_players = nil
+		else
+			local list
+			for _, ply in player.Iterator() do
+				if BSA.Players.IsCloak(ply) then
+					list = list or {}
+					list[#list+1] = ply
+				end
+			end
+			cloaked_players = list
+		end
+	end
+	return cloaked_players
+end
+
+function SF.IsCloaked(instance, ent)
+	if not ent or instance.player == SF.Superuser or not isentity(ent) then return false end
+	if not SF.GetCloakedPlayers() then return false end
+	local BSA = _G.BSA
+	if not BSA or not BSA.Players or not BSA.Players.IsCloakedFrom then return false end
+	if not Ent_IsValid(ent) or Ent_IsWorld(ent) then return false end
+	return BSA.Players.IsCloakedFrom(ent, instance.player)
+end
+
+function SF.IsCloakedFrom(instance, ent)
+	if not ent or instance.player == SF.Superuser or not isentity(ent) then return false end
+	if not SF.GetCloakedPlayers() then return false end
+	local BSA = _G.BSA
+	if not BSA or not BSA.Players or not BSA.Players.IsCloakedFrom then return false end
+	while Ent_IsValid(ent) and not Ent_IsWorld(ent) do
+		if BSA.Players.IsCloakedFrom(ent, instance.player) then return true end
+		ent = Ent_GetParent(ent)
+	end
+	return false
+end
+
+if CLIENT then
+	local lp_cache
+	local view_frame = -1
+	local view_cache
+
+	function SF.GetLocalPlayer()
+		if not Ent_IsValid(lp_cache) then
+			lp_cache = LocalPlayer()
+		end
+		return lp_cache
+	end
+
+	function SF.GetViewEntity()
+		local frame = FrameNumber()
+		if frame ~= view_frame then
+			view_frame = frame
+			local lp = SF.GetLocalPlayer()
+			if Ent_IsValid(lp) then
+				local view = lp:GetViewEntity()
+				view_cache = Ent_IsValid(view) and view or lp
+			else
+				view_cache = lp
+			end
+		end
+		return view_cache
+	end
+
+	function SF.IsViewCloaked(instance)
+		if instance.player == SF.Superuser then return false end
+		if not SF.GetCloakedPlayers() then return false end
+		local BSA = _G.BSA
+		if not BSA or not BSA.Players or not BSA.Players.IsCloakedFrom then return false end
+		local lp = SF.GetLocalPlayer()
+		local view = SF.GetViewEntity()
+		if not Ent_IsValid(lp) then return false end
+		if BSA.Players.IsCloakedFrom(lp, instance.player) then return true end
+		return view ~= lp and BSA.Players.IsCloakedFrom(view, instance.player)
+	end
+
+	function SF.HasForeignCloakedPlayers(instance)
+		if instance.player == SF.Superuser then return false end
+		local cloaked = SF.GetCloakedPlayers()
+		if not cloaked then return false end
+		local BSA = _G.BSA
+		if not BSA or not BSA.Players or not BSA.Players.CanSeeCloak then return false end
+		local lp = SF.GetLocalPlayer()
+		if instance.player == lp then return false end
+		for i = 1, #cloaked do
+			local ply = cloaked[i]
+			if BSA.Players.CanSeeCloak(lp, ply) and not BSA.Players.CanSeeCloak(instance.player, ply) then
+				return true
+			end
+		end
+		return false
+	end
+end
+
+function SF.SanitizeTraceResult(instance, trace, endpos)
+	if not trace or instance.player == SF.Superuser then return trace end
 
 	local ent = trace.Entity
-	if not (ent and Ent_IsValid(ent) and BSA.Players.IsCloakedFrom(ent, instance.player)) then
+	if not (ent and SF.IsCloakedFrom(instance, ent)) then
 		return trace
 	end
 
@@ -2052,7 +2175,11 @@ function SF.SanitizeTraceResult(instance, trace)
 	sanitized.HitNonWorld = false
 	sanitized.Fraction = 1
 	sanitized.FractionLeftSolid = 0
-	sanitized.HitPos = sanitized.StartPos or Vector(0, 0, 0)
+	if endpos then
+		sanitized.HitPos = Vector(endpos[1], endpos[2], endpos[3])
+	else
+		sanitized.HitPos = sanitized.StartPos or Vector(0, 0, 0)
+	end
 	sanitized.HitNormal = Vector(0, 0, 0)
 	sanitized.Normal = Vector(0, 0, 0)
 

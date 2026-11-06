@@ -55,17 +55,8 @@ SF.RegisterLibrary("hologram")
 -- @libtbl hologram_methods
 SF.RegisterType("Hologram", true, false, nil, "Entity")
 
-local BSA
 local function is_cloaked_chain(instance, ent)
-	BSA = BSA or _G.BSA
-	if not BSA or instance.player == SF.Superuser then return false end
-
-	while ent and ent:IsValid() do
-		if BSA.Players.IsCloakedFrom(ent, instance.player) then return true end
-		ent = ent:GetParent()
-	end
-
-	return false
+	return SF.IsCloakedFrom(instance, ent)
 end
 
 local Ent_IsValid = ENT_META.IsValid

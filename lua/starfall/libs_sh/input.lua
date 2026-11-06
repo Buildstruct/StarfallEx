@@ -96,7 +96,12 @@ hook.Add("StartChat","SF_StartChat",function() isChatOpen=true end)
 hook.Add("FinishChat","SF_StartChat",function() isChatOpen=false end)
 
 
+local function is_local_realm(instance)
+	return instance.player == SF.Superuser or instance.player == SF.GetLocalPlayer()
+end
+
 local function CheckButtonPerms(instance, ply, button)
+	if not is_local_realm(instance) then return false end
 	if not IsFirstTimePredicted() and not game.SinglePlayer() then return false end
 	if instance.player ~= SF.Superuser then
 		if not haspermission(instance, nil, "input") then return false end
@@ -131,6 +136,7 @@ SF.hookAdd(PlayerButtonUp, "inputreleased", CheckButtonPerms)
 -- @param string bind Name of keybind pressed
 -- @return boolean Returning true will block the binding from being pressed for the chip owner
 SF.hookAdd("PlayerBindPress", "inputbindpressed", function(instance, ply, bind)
+	if not is_local_realm(instance) then return false end
 	if instance.player == SF.Superuser or haspermission(instance, nil, "input") then
 		return true, {bind}
 	end
@@ -147,6 +153,7 @@ end)
 -- @param number x X coordinate moved
 -- @param number y Y coordinate moved
 SF.hookAdd("InputMouseApply", "mousemoved", function(instance, _, x, y)
+	if not is_local_realm(instance) then return false end
 	if instance.player == SF.Superuser or haspermission(instance, nil, "input") then
 		if x~=0 or y~=0 then
 			return true, { x, y }
@@ -162,6 +169,7 @@ end)
 -- @class hook
 -- @param number delta Rotate delta
 SF.hookAdd("StartCommand", "mousewheeled", function(instance, ply, cmd)
+	if not is_local_realm(instance) then return false end
 	if instance.player == SF.Superuser or haspermission(instance, nil, "input") then
 		local delta = cmd:GetMouseWheel()
 		if delta ~= 0 then
@@ -177,7 +185,7 @@ local oldOnMouseWheeled = wpanel.OnMouseWheeled or function() end
 function wpanel:OnMouseWheeled(delta)
 	oldOnMouseWheeled(self, delta)
 	for inst, _ in pairs(SF.allInstances) do
-		if inst.player == SF.Superuser or haspermission(inst, nil, "input") then
+		if is_local_realm(inst) and (inst.player == SF.Superuser or haspermission(inst, nil, "input")) then
 			inst:runScriptHook("mousewheeled", delta)
 		end
 	end
@@ -227,6 +235,7 @@ local vwrap = instance.Types.Vector.Wrap
 -- @return string The name of the first key bound
 function input_library.lookupBinding(binding)
 	checkluatype(binding, TYPE_STRING)
+	if not is_local_realm(instance) then return end
 
 	checkpermission(instance, nil, "input")
 
@@ -244,6 +253,7 @@ end
 -- @return string The command bound to the key
 function input_library.lookupKeyBinding(key)
 	checkluatype(key, TYPE_NUMBER)
+	if not is_local_realm(instance) then return end
 	checkpermission(instance, nil, "input.bindings")
 	return input.LookupKeyBinding(key)
 end
@@ -254,6 +264,7 @@ end
 -- @return boolean True if the key is down
 function input_library.isKeyDown(key)
 	checkluatype(key, TYPE_NUMBER)
+	if not is_local_realm(instance) then return false end
 
 	checkpermission(instance, nil, "input")
 	if isChatOpen and not (instance.player == SF.Superuser or haspermission(instance, nil, "input.chat")) then return false end
@@ -267,6 +278,7 @@ end
 -- @return boolean True if the key is down
 function input_library.isMouseDown(key)
 	checkluatype(key, TYPE_NUMBER)
+	if not is_local_realm(instance) then return false end
 
 	checkpermission(instance, nil, "input")
 
@@ -279,6 +291,7 @@ end
 -- @return string The name of the key
 function input_library.getKeyName(key)
 	checkluatype(key, TYPE_NUMBER)
+	if not is_local_realm(instance) then return "" end
 
 	checkpermission(instance, nil, "input")
 
@@ -289,6 +302,7 @@ end
 -- @client
 -- @return boolean True if the shift key is down
 function input_library.isShiftDown()
+	if not is_local_realm(instance) then return false end
 	checkpermission(instance, nil, "input")
 
 	return input.IsShiftDown()
@@ -298,6 +312,7 @@ end
 -- @client
 -- @return boolean True if the control key is down
 function input_library.isControlDown()
+	if not is_local_realm(instance) then return false end
 	checkpermission(instance, nil, "input")
 
 	return input.IsControlDown()
@@ -308,6 +323,7 @@ end
 -- @return number The x position of the mouse
 -- @return number The y position of the mouse
 function input_library.getCursorPos()
+	if not is_local_realm(instance) then return 0, 0 end
 	checkpermission(instance, nil, "input")
 
 	return input.GetCursorPos()
@@ -317,6 +333,7 @@ end
 -- @client
 -- @return boolean The cursor's visibility
 function input_library.getCursorVisible()
+	if not is_local_realm(instance) then return false end
 	checkpermission(instance, nil, "input")
 
 	return vgui.CursorVisible()
@@ -328,6 +345,7 @@ end
 -- @param number y Y coordinate on the screen
 -- @return Vector Aim vector
 function input_library.screenToVector(x, y)
+	if not is_local_realm(instance) then return vwrap(Vector()) end
 	checkpermission(instance, nil, "input")
 	checkluatype(x, TYPE_NUMBER)
 	checkluatype(y, TYPE_NUMBER)
@@ -339,6 +357,7 @@ end
 -- @param boolean enabled Whether or not the cursor should be enabled
 function input_library.enableCursor(enabled)
 	checkluatype(enabled, TYPE_BOOL)
+	if not is_local_realm(instance) then return end
 	checkpermission(instance, nil, "input.enablecursor")
 
 	inputdata.cursorEnabled = enabled
@@ -349,6 +368,7 @@ end
 -- @client
 -- @param Weapon weapon The weapon entity to select
 function input_library.selectWeapon(weapon)
+	if not is_local_realm(instance) then return end
 	local ent = eunwrap(weapon)
 	if not (ent:IsWeapon() and ent:IsCarriedByLocalPlayer()) then SF.Throw("This weapon is not your own!", 2) end
 	checkpermission(instance, nil, "input.emulate")
@@ -360,6 +380,7 @@ end
 -- @param number x
 -- @param number y
 function input_library.setCursorPos(x, y)
+	if not is_local_realm(instance) then return end
 	checkpermission(instance, nil, "input.emulate")
 
 	if not vgui.CursorVisible() then
@@ -377,6 +398,7 @@ end
 -- @param boolean enabled Whether to lock or unlock the controls
 function input_library.lockControls(enabled)
 	checkluatype(enabled, TYPE_BOOL)
+	if not is_local_realm(instance) then return end
 	checkpermission(instance, nil, "input.lockcontrols")
 
 	if enabled then
@@ -394,6 +416,7 @@ end
 -- @client
 -- @return boolean Whether the player's control is locked
 function input_library.isControlLocked()
+	if not is_local_realm(instance) then return false end
 	return controlsLocked
 end
 
@@ -401,6 +424,7 @@ end
 -- @client
 -- @return boolean Whether the player's control can be locked
 function input_library.canLockControls()
+	if not is_local_realm(instance) then return false end
 	return instance.player == SF.Superuser or (haspermission(instance, nil, "input.lockcontrols") and lockedControlCooldown + inputLockCooldown:GetFloat() <= CurTime())
 end
 
@@ -408,6 +432,7 @@ end
 -- @client
 -- @return boolean Whether the game menu overlay ( main menu ) is open or not
 function input_library.isGameUIVisible()
+	if not is_local_realm(instance) then return false end
 	return gui.IsGameUIVisible()
 end
 
@@ -417,6 +442,9 @@ end
 -- @client
 -- @param number axis The analog axis to poll. See https://wiki.facepunch.com/gmod/Enums/ANALOG
 -- @return number The digital value.
-input_library.getAnalogValue = input.GetAnalogValue
+function input_library.getAnalogValue(axis)
+	if not is_local_realm(instance) then return 0 end
+	return input.GetAnalogValue(axis)
+end
 
 end

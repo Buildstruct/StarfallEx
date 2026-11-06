@@ -780,20 +780,16 @@ else
 		LocalPlayer():ConCommand(cmd)
 	end
 
-	local BSA
 	local function is_cloak(instance, self)
-		BSA = BSA or _G.BSA
-		if not BSA then return false end
-		if instance.player == SF.Superuser then return false end
-		return BSA.Players.IsCloakedFrom(self, instance.player)
+		return SF.IsCloaked(instance, self)
 	end
 
 	--- Returns the local player's camera angles
 	-- @client
 	-- @return Angle The local player's camera angles
 	function builtins_library.eyeAngles()
-		local lp = LocalPlayer()
-		if is_cloak(instance, lp) then return awrap(Angle()) end
+		local lp = SF.GetLocalPlayer()
+		if is_cloak(instance, lp) or SF.IsViewCloaked(instance) then return awrap(Angle()) end
 		return awrap(lp:EyeAngles())
 	end
 
@@ -801,8 +797,8 @@ else
 	-- @client
 	-- @return Vector The local player's camera position
 	function builtins_library.eyePos()
-		local lp = LocalPlayer()
-		if is_cloak(instance, lp) then return vwrap(Vector()) end
+		local lp = SF.GetLocalPlayer()
+		if is_cloak(instance, lp) or SF.IsViewCloaked(instance) then return vwrap(Vector()) end
 		return vwrap(lp:EyePos())
 	end
 
@@ -810,8 +806,8 @@ else
 	-- @client
 	-- @return Vector The local player's camera forward vector
 	function builtins_library.eyeVector()
-		local lp = LocalPlayer()
-		if is_cloak(instance, lp) then return vwrap(Vector()) end
+		local lp = SF.GetLocalPlayer()
+		if is_cloak(instance, lp) or SF.IsViewCloaked(instance) then return vwrap(Vector()) end
 		return vwrap(lp:GetAimVector())
 	end
 end

@@ -15,20 +15,12 @@ registerprivilege("entities.setHealth", "SetHealth", "Allows the user to change 
 registerprivilege("entities.setMaxHealth", "SetMaxHealth", "Allows the user to change an entity's max health", { entities = {} })
 registerprivilege("entities.doNotDuplicate", "DoNotDuplicate", "Allows the user to set whether an entity will be saved on dupes or map saves", { entities = {} })
 
-local BSA
 local function is_cloak(instance, self)
-	BSA = BSA or _G.BSA
-	if not BSA then return false end
-	if instance.player == SF.Superuser then return false end
-	return BSA.Players.IsCloakedFrom(self, instance.player)
+	return SF.IsCloaked(instance, self)
 end
 
 local function is_cloaked_chain(instance, ent)
-	while ENT_META.IsValid(ent) do
-		if is_cloak(instance, ent) then return true end
-		ent = ENT_META.GetParent(ent)
-	end
-	return false
+	return SF.IsCloakedFrom(instance, ent)
 end
 
 local emitSoundBurst = SF.BurstObject("emitSound", "emitsound", 180, 200, " sounds can be emitted per second", "Number of sounds that can be emitted in a short time")
@@ -2407,7 +2399,9 @@ end
 -- @shared
 -- @return Entity Ground entity
 function ents_methods:getGroundEntity()
-	return owrap(getent(self):GetGroundEntity())
+	local ent = getent(self)
+	if is_cloaked_chain(instance, ent) then return nil end
+	return owrap(ent:GetGroundEntity())
 end
 
 end

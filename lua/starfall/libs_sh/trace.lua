@@ -29,25 +29,58 @@ local ent_meta, ewrap, eunwrap = instance.Types.Entity, instance.Types.Entity.Wr
 local ang_meta, awrap, aunwrap = instance.Types.Angle, instance.Types.Angle.Wrap, instance.Types.Angle.Unwrap
 local vec_meta, vwrap, vunwrap = instance.Types.Vector, instance.Types.Vector.Wrap, instance.Types.Vector.Unwrap
 
-local function convertFilter(filter)
+local function convertFilter(filter, whitelist, skip_cloak)
+	local BSA = _G.BSA
+	local cloakcheck = not skip_cloak and instance.player ~= SF.Superuser and SF.GetCloakedPlayers() and BSA and BSA.Players and BSA.Players.IsCloakedFrom
+
+	if not cloakcheck then
+		if filter == nil then
+			return nil, false
+		elseif istable(filter) then
+			local meta = debug.getmetatable(filter)
+			if meta==ent_meta or (meta and meta.supertype==ent_meta) then
+				return eunwrap(filter), false
+			else
+				local l = {}
+				for i, v in ipairs(filter) do
+					l[i] = eunwrap(v)
+				end
+				return l, false
+			end
+		elseif isfunction(filter) then
+			return function(ent)
+				local ret = instance:runFunction(filter, owrap(ent))
+				if ret[1] then return ret[2] end
+			end, false
+		else
+			SF.ThrowTypeError("table or function", SF.GetType(filter), 3)
+		end
+	end
+
 	if filter == nil then
-		return nil
+		if whitelist then return function() return true end, true end
+		return function(ent) return SF.IsCloakedFrom(instance, ent) end, true
 	elseif istable(filter) then
 		local meta = debug.getmetatable(filter)
+		local listed = {}
 		if meta==ent_meta or (meta and meta.supertype==ent_meta) then
-			return eunwrap(filter)
+			listed[eunwrap(filter)] = true
 		else
-			local l = {}
 			for i, v in ipairs(filter) do
-				l[i] = eunwrap(v)
+				listed[eunwrap(v)] = true
 			end
-			return l
+		end
+		if whitelist then
+			return function(ent) return SF.IsCloakedFrom(instance, ent) or not listed[ent] end, true
+		else
+			return function(ent) return SF.IsCloakedFrom(instance, ent) or listed[ent] == true end, true
 		end
 	elseif isfunction(filter) then
 		return function(ent)
+			if SF.IsCloakedFrom(instance, ent) then return true end
 			local ret = instance:runFunction(filter, owrap(ent))
 			if ret[1] then return ret[2] end
-		end
+		end, true
 	else
 		SF.ThrowTypeError("table or function", SF.GetType(filter), 3)
 	end
@@ -69,15 +102,16 @@ function trace_library.line(start, endpos, filter, mask, colgroup, ignworld, whi
 	vec_SetUnpacked(start_vec, start[1], start[2], start[3])
 	vec_SetUnpacked(endpos_vec, endpos[1], endpos[2], endpos[3])
 
-	return structWrapper(instance, util_TraceLine({
+	local filter_fn, handled_whitelist = convertFilter(filter, whitelist)
+	return structWrapper(instance, SF.SanitizeTraceResult(instance, util_TraceLine({
 		start = start_vec,
 		endpos = endpos_vec,
-		filter = convertFilter(filter),
+		filter = filter_fn,
 		mask = mask,
 		collisiongroup = colgroup,
 		ignoreworld = ignworld,
-		whitelist = whitelist,
-	}), "TraceResult")
+		whitelist = whitelist and not handled_whitelist,
+	}), endpos_vec), "TraceResult")
 end
 
 --- Does a swept-AABB trace
@@ -99,17 +133,18 @@ function trace_library.hull(start, endpos, minbox, maxbox, filter, mask, colgrou
 
 	OrderVectors(minbox_vec, maxbox_vec)
 
-	return structWrapper(instance, util_TraceHull({
+	local filter_fn, handled_whitelist = convertFilter(filter, whitelist)
+	return structWrapper(instance, SF.SanitizeTraceResult(instance, util_TraceHull({
 		start = start_vec,
 		endpos = endpos_vec,
-		filter = convertFilter(filter),
+		filter = filter_fn,
 		mask = mask,
 		collisiongroup = colgroup,
 		ignoreworld = ignworld,
 		mins = minbox_vec,
 		maxs = maxbox_vec,
-		whitelist = whitelist,
-	}), "TraceResult")
+		whitelist = whitelist and not handled_whitelist,
+	}), endpos_vec), "TraceResult")
 end
 
 --- Does a ray box intersection returning the position hit, normal, and trace fraction, or nil if not hit.
@@ -172,7 +207,7 @@ function trace_library.decal(name, start, endpos, filter)
 	checkpermission(instance, nil, "trace.decal")
 	checkluatype(name, TYPE_STRING)
 
-	if filter ~= nil then checkluatype(filter, TYPE_TABLE) filter = convertFilter(filter) end
+	if filter ~= nil then checkluatype(filter, TYPE_TABLE) filter = convertFilter(filter, nil, true) end
 
 	vec_SetUnpacked(start_vec, start[1], start[2], start[3])
 	vec_SetUnpacked(endpos_vec, endpos[1], endpos[2], endpos[3])

@@ -94,7 +94,6 @@ SF.RegisterType("ProjectedTexture", true, false)
 
 return function(instance)
 local checkpermission = instance.player ~= SF.Superuser and SF.Permissions.check or function() end
-local BSA
 
 local light_library = instance.Libraries.light
 local light_methods, light_meta, wrap, unwrap = instance.Types.Light.Methods, instance.Types.Light, instance.Types.Light.Wrap, instance.Types.Light.Unwrap
@@ -125,15 +124,7 @@ instance:AddHook("initialize", function()
 end)
 
 local function is_cloaked_chain(ent)
-	BSA = BSA or _G.BSA
-	if not BSA or instance.player == SF.Superuser then return false end
-
-	while ent and ent:IsValid() do
-		if BSA.Players.IsCloakedFrom(ent, instance.player) then return true end
-		ent = ent:GetParent()
-	end
-
-	return false
+	return SF.IsCloakedFrom(instance, ent)
 end
 
 instance.data.light = {lights = lights}

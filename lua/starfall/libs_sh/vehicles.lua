@@ -81,12 +81,8 @@ instance:AddHook("initialize", function()
 	vehicle_meta.__tostring = ent_meta.__tostring
 end)
 
-local BSA
 local function is_cloak(ent)
-	BSA = BSA or _G.BSA
-	if not BSA then return false end
-	if instance.player == SF.Superuser then return false end
-	return BSA.Players.IsCloakedFrom(ent, instance.player)
+	return SF.IsCloaked(instance, ent)
 end
 
 --- Returns the driver of the vehicle
@@ -146,10 +142,14 @@ end
 function vehicle_methods:getVehicleViewPosition(role)
 	if role then
 		checkluatype(role, TYPE_NUMBER)
+	else
+		role = 0
 	end
 
 	local veh = unwrap(self)
 	if is_cloak(veh) then return vwrap(Vector()), awrap(Angle()), 0 end
+	local passenger = role == 0 and Veh_GetDriver(veh) or Veh_GetPassenger(veh, role)
+	if Ent_IsValid(passenger) and is_cloak(passenger) then return vwrap(Vector()), awrap(Angle()), 0 end
 	local pos, ang, fov = Veh_GetVehicleViewPosition(veh, role)
 
 	return vwrap(pos), awrap(ang), fov
