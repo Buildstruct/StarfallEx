@@ -67,12 +67,8 @@ local ang_meta, awrap, aunwrap = instance.Types.Angle, instance.Types.Angle.Wrap
 local vec_meta, vwrap, vunwrap = instance.Types.Vector, instance.Types.Vector.Wrap, instance.Types.Vector.Unwrap
 local plywrap, plyunwrap = instance.Types.Player.Wrap, instance.Types.Player.Unwrap
 
-local BSA
 local function is_cloak_lp()
-	BSA = BSA or _G.BSA
-	if not BSA then return false end
-	if instance.player == SF.Superuser then return false end
-	return BSA.Players.IsCloakedFrom(LocalPlayer(), instance.player)
+	return SF.IsCloakedFrom(instance, SF.GetLocalPlayer())
 end
 
 --- Checks whether the player is in VR

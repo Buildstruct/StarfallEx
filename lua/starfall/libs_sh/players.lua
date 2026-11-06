@@ -78,12 +78,8 @@ SF.RegisterType("Player", false, true, PLY_META, "Entity")
 
 return function(instance)
 local checkpermission = instance.player ~= SF.Superuser and SF.Permissions.check or function() end
-local BSA
 local function is_cloak(instance, self)
-	BSA = BSA or _G.BSA
-	if not BSA then return false end
-	if instance.player == SF.Superuser then return false end
-	return BSA.Players.IsCloakedFrom(self, instance.player)
+	return SF.IsCloaked(instance, self)
 end
 
 local Ent_GetFriction,Ent_GetMoveType,Ent_GetSequenceActivity,Ent_IsValid,Ent_LookupSequence,Ent_SequenceDuration,Ent_SetCycle = ENT_META.GetFriction,ENT_META.GetMoveType,ENT_META.GetSequenceActivity,ENT_META.IsValid,ENT_META.LookupSequence,ENT_META.SequenceDuration,ENT_META.SetCycle
@@ -107,21 +103,27 @@ player_meta.GetPlayer = player_meta.Unwrap -- Backwards compat
 -- @shared
 -- @return boolean True if player alive
 function player_methods:isAlive()
-	return Ply_Alive(unwrap(self))
+	local e = unwrap(self)
+	if is_cloak(instance, e) then return false end
+	return Ply_Alive(e)
 end
 
 --- Returns the players armor
 -- @shared
 -- @return number Armor
 function player_methods:getArmor()
-	return Ply_Armor(unwrap(self))
+	local e = unwrap(self)
+	if is_cloak(instance, e) then return 0 end
+	return Ply_Armor(e)
 end
 
 --- Returns the players maximum armor capacity
 -- @shared
 -- @return number Armor limit
 function player_methods:getMaxArmor()
-	return Ply_GetMaxArmor(unwrap(self))
+	local e = unwrap(self)
+	if is_cloak(instance, e) then return 0 end
+	return Ply_GetMaxArmor(e)
 end
 
 --- Returns the players Crouched Walk Speed
@@ -205,35 +207,45 @@ end
 -- @shared
 -- @return boolean True if player crouching
 function player_methods:isCrouching()
-	return Ply_Crouching(unwrap(self))
+	local e = unwrap(self)
+	if is_cloak(instance, e) then return false end
+	return Ply_Crouching(e)
 end
 
 --- Returns the amount of deaths of the player
 -- @shared
 -- @return number Amount of deaths
 function player_methods:getDeaths()
-	return Ply_Deaths(unwrap(self))
+	local e = unwrap(self)
+	if is_cloak(instance, e) then return 0 end
+	return Ply_Deaths(e)
 end
 
 --- Returns whether the player's flashlight is on
 -- @shared
 -- @return boolean True if player has flashlight on
 function player_methods:isFlashlightOn()
-	return Ply_FlashlightIsOn(unwrap(self))
+	local e = unwrap(self)
+	if is_cloak(instance, e) then return false end
+	return Ply_FlashlightIsOn(e)
 end
 
 --- Returns true if the player is noclipped
 -- @shared
 -- @return boolean True if the player is noclipped
 function player_methods:isNoclipped()
-	return Ent_GetMoveType(unwrap(self)) == MOVETYPE_NOCLIP
+	local e = unwrap(self)
+	if is_cloak(instance, e) then return false end
+	return Ent_GetMoveType(e) == MOVETYPE_NOCLIP
 end
 
 --- Returns the amount of kills of the player
 -- @shared
 -- @return number Amount of kills
 function player_methods:getFrags()
-	return Ply_Frags(unwrap(self))
+	local e = unwrap(self)
+	if is_cloak(instance, e) then return 0 end
+	return Ply_Frags(e)
 end
 
 --- Returns the name of the player's active weapon
@@ -258,14 +270,18 @@ end
 -- @shared
 -- @return number Field of view as a float
 function player_methods:getFOV()
-	return Ply_GetFOV(unwrap(self))
+	local e = unwrap(self)
+	if is_cloak(instance, e) then return 0 end
+	return Ply_GetFOV(e)
 end
 
 --- Returns the player's name
 -- @shared
 -- @return string Name
 function player_methods:getName()
-	return Ply_GetName(unwrap(self))
+	local e = unwrap(self)
+	if is_cloak(instance, e) then return "" end
+	return Ply_GetName(e)
 end
 
 --- Returns the entity the player is currently using, like func_tank mounted turrets or +use prop pickups.
@@ -308,28 +324,36 @@ end
 -- @shared
 -- @return boolean True if player is admin
 function player_methods:isAdmin()
-	return Ply_IsAdmin(unwrap(self))
+	local e = unwrap(self)
+	if is_cloak(instance, e) then return false end
+	return Ply_IsAdmin(e)
 end
 
 --- Returns whether the player is a bot
 -- @shared
 -- @return boolean True if player is a bot
 function player_methods:isBot()
-	return Ply_IsBot(unwrap(self))
+	local e = unwrap(self)
+	if is_cloak(instance, e) then return false end
+	return Ply_IsBot(e)
 end
 
 --- Returns whether the player is frozen
 -- @shared
 -- @return boolean True if player is frozen
 function player_methods:isFrozen()
-	return Ply_IsFrozen(unwrap(self))
+	local e = unwrap(self)
+	if is_cloak(instance, e) then return false end
+	return Ply_IsFrozen(e)
 end
 
 --- Returns whether the player is a super admin
 -- @shared
 -- @return boolean True if player is super admin
 function player_methods:isSuperAdmin()
-	return Ply_IsSuperAdmin(unwrap(self))
+	local e = unwrap(self)
+	if is_cloak(instance, e) then return false end
+	return Ply_IsSuperAdmin(e)
 end
 
 --- Returns whether the player belongs to a usergroup
@@ -337,28 +361,36 @@ end
 -- @param string groupName Group to check against
 -- @return boolean True if player belongs to group
 function player_methods:isUserGroup(group)
-	return Ply_IsUserGroup(unwrap(self), group)
+	local e = unwrap(self)
+	if is_cloak(instance, e) then return false end
+	return Ply_IsUserGroup(e, group)
 end
 
 --- Returns the usergroup of the player
 -- @shared
 -- @return string Usergroup, "user" if player has no group
 function player_methods:getUserGroup()
-	return Ply_GetUserGroup(unwrap(self))
+	local e = unwrap(self)
+	if is_cloak(instance, e) then return "" end
+	return Ply_GetUserGroup(e)
 end
 
 --- Returns the player's current ping
 -- @shared
 -- @return number The player's ping
 function player_methods:getPing()
-	return Ply_Ping(unwrap(self))
+	local e = unwrap(self)
+	if is_cloak(instance, e) then return 0 end
+	return Ply_Ping(e)
 end
 
 --- Returns the player's SteamID
 -- @shared
 -- @return string SteamID
 function player_methods:getSteamID()
-	return Ply_SteamID(unwrap(self))
+	local e = unwrap(self)
+	if is_cloak(instance, e) then return "" end
+	return Ply_SteamID(e)
 end
 
 --- Returns the player's SteamID64 / Community ID
@@ -369,10 +401,12 @@ end
 -- @param boolean? owner Return the actual game owner account id
 -- @return string SteamID64 aka Community ID
 function player_methods:getSteamID64(owner)
+	local e = unwrap(self)
+	if is_cloak(instance, e) then return "" end
 	if owner then
-		return Ply_OwnerSteamID64(unwrap(self))
+		return Ply_OwnerSteamID64(e)
 	else
-		return Ply_SteamID64(unwrap(self))
+		return Ply_SteamID64(e)
 	end
 end
 
@@ -380,21 +414,27 @@ end
 -- @shared
 -- @return number Team Index, from TEAM enums or custom teams
 function player_methods:getTeam()
-	return Ply_Team(unwrap(self))
+	local e = unwrap(self)
+	if is_cloak(instance, e) then return 0 end
+	return Ply_Team(e)
 end
 
 --- Returns the name of the player's current team
 -- @shared
 -- @return string Team Name
 function player_methods:getTeamName()
-	return team.GetName(Ply_Team(unwrap(self)))
+	local e = unwrap(self)
+	if is_cloak(instance, e) then return "" end
+	return team.GetName(Ply_Team(e))
 end
 
 --- Returns the player's UserID
 -- @shared
 -- @return number UserID
 function player_methods:getUserID()
-	return Ply_UserID(unwrap(self))
+	local e = unwrap(self)
+	if is_cloak(instance, e) then return 0 end
+	return Ply_UserID(e)
 end
 
 --- Returns a table with information of what the player is looking at
@@ -402,7 +442,8 @@ end
 -- @return table Trace data https://wiki.facepunch.com/gmod/Structures/TraceResult
 function player_methods:getEyeTrace()
 	local e = unwrap(self)
-	if is_cloak(instance, e) then
+	local from_cloaked_view = CLIENT and e == SF.GetLocalPlayer() and SF.IsViewCloaked(instance)
+	if is_cloak(instance, e) or from_cloaked_view then
 		return SF.StructWrapper(instance, SF.SanitizeTraceResult(instance, {
 			['HitBox'] = 0,
 			['HitNonWorld'] = false,
@@ -429,7 +470,18 @@ function player_methods:getEyeTrace()
 			['HitNoDraw'] = false
 		}), "TraceResult")
 	end
-	return SF.StructWrapper(instance, SF.SanitizeTraceResult(instance, Ply_GetEyeTrace(e)), "TraceResult")
+	local trace = Ply_GetEyeTrace(e)
+	local endpos = Ply_GetShootPos(e) + Ply_GetAimVector(e) * 56756
+	if trace.Entity and SF.IsCloakedFrom(instance, trace.Entity) then
+		local vehicle = Ply_GetVehicle(e)
+		trace = util.TraceLine({
+			start = Ply_GetShootPos(e),
+			endpos = endpos,
+			filter = function(ent) return ent == e or ent == vehicle or SF.IsCloakedFrom(instance, ent) end,
+			mask = MASK_SOLID,
+		})
+	end
+	return SF.StructWrapper(instance, SF.SanitizeTraceResult(instance, trace, endpos), "TraceResult")
 end
 
 --- Returns the player's current view entity
@@ -438,7 +490,9 @@ end
 function player_methods:getViewEntity()
 	local e = unwrap(self)
 	if is_cloak(instance, e) then return nil end
-	return owrap(Ply_GetViewEntity(e))
+	local view = Ply_GetViewEntity(e)
+	if is_cloak(instance, view) then return nil end
+	return owrap(view)
 end
 
 --- Returns the player's view model
@@ -485,7 +539,9 @@ end
 -- @shared
 -- @return Vector The color
 function player_methods:getWeaponColor()
-	return vwrap(Ply_GetWeaponColor(unwrap(self)))
+	local e = unwrap(self)
+	if is_cloak(instance, e) then return vwrap(Vector()) end
+	return vwrap(Ply_GetWeaponColor(e))
 end
 
 --- Returns a player's color
@@ -494,7 +550,9 @@ end
 -- @shared
 -- @return Vector The color
 function player_methods:getPlayerColor()
-	return vwrap(Ply_GetPlayerColor(unwrap(self)))
+	local e = unwrap(self)
+	if is_cloak(instance, e) then return vwrap(Vector()) end
+	return vwrap(Ply_GetPlayerColor(e))
 end
 
 --- Returns the entity that the player is standing on
@@ -512,22 +570,28 @@ end
 -- @return number The amount of ammo player has in reserve.
 function player_methods:getAmmoCount(id)
 	if not isnumber(id) and not isstring(id) then SF.ThrowTypeError("number or string", SF.GetType(id), 2) end
+	local e = unwrap(self)
+	if is_cloak(instance, e) then return 0 end
 
-	return Ply_GetAmmoCount(unwrap(self), id)
+	return Ply_GetAmmoCount(e, id)
 end
 
 --- Returns whether the player is typing in their chat
 -- @shared
 -- @return boolean Whether they are typing in the chat
 function player_methods:isTyping()
-	return Ply_IsTyping(unwrap(self))
+	local e = unwrap(self)
+	if is_cloak(instance, e) then return false end
+	return Ply_IsTyping(e)
 end
 
 --- Returns whether the player is sprinting
 -- @shared
 -- @return boolean Whether they are sprinting
 function player_methods:isSprinting()
-	return Ply_IsSprinting(unwrap(self))
+	local e = unwrap(self)
+	if is_cloak(instance, e) then return false end
+	return Ply_IsSprinting(e)
 end
 
 --- Returns whether the player is walking
@@ -535,7 +599,9 @@ end
 -- @shared
 -- @return boolean Whether they are walking
 function player_methods:isWalking()
-	return Ply_IsWalking(unwrap(self))
+	local e = unwrap(self)
+	if is_cloak(instance, e) then return false end
+	return Ply_IsWalking(e)
 end
 
 --- Gets the player's death ragdoll
@@ -551,7 +617,9 @@ end
 -- @param number key Key to check. IN_KEY table values
 -- @return boolean Whether their key is down
 function player_methods:keyDown(key)
-	return Ply_KeyDown(unwrap(self), key)
+	local e = unwrap(self)
+	if is_cloak(instance, e) then return false end
+	return Ply_KeyDown(e, key)
 end
 
 --- Gets whether a key was down one tick ago.
@@ -559,7 +627,9 @@ end
 -- @param number key Key to check. See IN_KEY table values.
 -- @return boolean Is their key down.
 function player_methods:keyDownLast(key)
-	return Ply_KeyDownLast(unwrap(self), key)
+	local e = unwrap(self)
+	if is_cloak(instance, e) then return false end
+	return Ply_KeyDownLast(e, key)
 end
 
 --- Gets whether a key was just pressed this tick.
@@ -567,7 +637,9 @@ end
 -- @param number key Key to check. See IN_KEY table values.
 -- @return boolean Was their key pressed.
 function player_methods:keyPressed(key)
-	return Ply_KeyPressed(unwrap(self), key)
+	local e = unwrap(self)
+	if is_cloak(instance, e) then return false end
+	return Ply_KeyPressed(e, key)
 end
 
 --- Gets whether a key was just released this tick.
@@ -575,13 +647,17 @@ end
 -- @param number key Key to check. See IN_KEY table values.
 -- @return boolean Was their key released.
 function player_methods:keyReleased(key)
-	return Ply_KeyReleased(unwrap(self), key)
+	local e = unwrap(self)
+	if is_cloak(instance, e) then return false end
+	return Ply_KeyReleased(e, key)
 end
 
 --- Returns if the player is taunting
 -- @return boolean Is the player taunting
 function player_methods:isPlayingTaunt()
-	return Ply_IsPlayingTaunt(unwrap(self))
+	local e = unwrap(self)
+	if is_cloak(instance, e) then return false end
+	return Ply_IsPlayingTaunt(e)
 end
 
 --- Returns the player's hull minimum and maximum vectors
@@ -589,7 +665,9 @@ end
 -- @return Vector The hull mins, the lowest corner of the Player's bounding box
 -- @return Vector The hull maxs, the highest corner of the Player's bounding box
 function player_methods:getHull()
-	local mins, maxs = Ply_GetHull(unwrap(self))
+	local e = unwrap(self)
+	if is_cloak(instance, e) then return vwrap(Vector()), vwrap(Vector()) end
+	local mins, maxs = Ply_GetHull(e)
 	return vwrap(mins), vwrap(maxs)
 end
 
@@ -598,7 +676,9 @@ end
 -- @return Vector The hull mins, the lowest corner of the Player's duck bounding box
 -- @return Vector The hull maxs, the highest corner of the Player's duck bounding box
 function player_methods:getHullDuck()
-	local mins, maxs = Ply_GetHullDuck(unwrap(self))
+	local e = unwrap(self)
+	if is_cloak(instance, e) then return vwrap(Vector()), vwrap(Vector()) end
+	local mins, maxs = Ply_GetHullDuck(e)
 	return vwrap(mins), vwrap(maxs)
 end
 
@@ -607,29 +687,37 @@ if CLIENT then
 	-- @client
 	-- @return string One of: "friend", "blocked", "none", "requested"
 	function player_methods:getFriendStatus()
+		local e = unwrap(self)
+		if is_cloak(instance, e) then return "" end
 		checkpermission(instance, nil, "player.getFriendStatus")
-		return Ply_GetFriendStatus(unwrap(self))
+		return Ply_GetFriendStatus(e)
 	end
 
 	--- Returns whether the local player has muted the player
 	-- @client
 	-- @return boolean True if the player was muted
 	function player_methods:isMuted()
-		return Ply_IsMuted(unwrap(self))
+		local e = unwrap(self)
+		if is_cloak(instance, e) then return false end
+		return Ply_IsMuted(e)
 	end
 
 	--- Returns whether the player is heard by the local player.
 	-- @client
 	-- @return boolean Whether they are speaking and able to be heard by LocalPlayer
 	function player_methods:isSpeaking()
-		return Ply_IsSpeaking(unwrap(self))
+		local e = unwrap(self)
+		if is_cloak(instance, e) then return false end
+		return Ply_IsSpeaking(e)
 	end
 
 	--- Returns the voice volume of the player
 	-- @client
 	-- @return number Returns the players voice volume, how loud the player's voice communication currently is, as a normal number.
 	function player_methods:voiceVolume()
-		return Ply_VoiceVolume(unwrap(self))
+		local e = unwrap(self)
+		if is_cloak(instance, e) then return 0 end
+		return Ply_VoiceVolume(e)
 	end
 
 	--- Plays gesture animations on a player
@@ -907,7 +995,9 @@ if CLIENT then
 	-- @client
 	-- @return boolean True if the player's playermodel is visible
 	function player_methods:shouldDrawLocalPlayer()
-		return Ply_ShouldDrawLocalPlayer(unwrap(self))
+		local e = unwrap(self)
+		if is_cloak(instance, e) then return false end
+		return Ply_ShouldDrawLocalPlayer(e)
 	end
 end
 

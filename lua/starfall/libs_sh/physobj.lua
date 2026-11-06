@@ -29,6 +29,10 @@ instance:AddHook("initialize", function()
 	aunwrap1 = ang_meta.QuickUnwrap1
 end)
 
+local function is_cloak(phys)
+	return SF.IsCloakedFrom(instance, Phys_GetEntity(phys))
+end
+
 --- Checks if the physics object is valid
 -- @shared
 -- @return boolean If the physics object is valid
@@ -47,28 +51,36 @@ end
 -- @shared
 -- @return Vector Vector position of the physics object
 function physobj_methods:getPos()
-	return vwrap(Phys_GetPos(unwrap(self)))
+	local phys = unwrap(self)
+	if is_cloak(phys) then return vwrap(Vector()) end
+	return vwrap(Phys_GetPos(phys))
 end
 
 --- Returns the world transform matrix of the physobj
 -- @shared
 -- @return VMatrix The matrix
 function physobj_methods:getMatrix()
-	return mwrap(Phys_GetPositionMatrix(unwrap(self)))
+	local phys = unwrap(self)
+	if is_cloak(phys) then return mwrap(Matrix()) end
+	return mwrap(Phys_GetPositionMatrix(phys))
 end
 
 --- Gets the angles of the physics object
 -- @shared
 -- @return Angle Angle angles of the physics object
 function physobj_methods:getAngles()
-	return awrap(Phys_GetAngles(unwrap(self)))
+	local phys = unwrap(self)
+	if is_cloak(phys) then return awrap(Angle()) end
+	return awrap(Phys_GetAngles(phys))
 end
 
 --- Gets the velocity of the physics object
 -- @shared
 -- @return Vector Vector velocity of the physics object
 function physobj_methods:getVelocity()
-	return vwrap(Phys_GetVelocity(unwrap(self)))
+	local phys = unwrap(self)
+	if is_cloak(phys) then return vwrap(Vector()) end
+	return vwrap(Phys_GetVelocity(phys))
 end
 
 --- Gets the velocity of the physics object in coordinates local to itself
@@ -76,6 +88,7 @@ end
 -- @return Vector Vector velocity of the physics object local to itself
 function physobj_methods:getLocalVelocity()
 	local phys = unwrap(self)
+	if is_cloak(phys) then return vwrap(Vector()) end
 	return vwrap(Phys_WorldToLocalVector(phys, Phys_GetVelocity(phys)))
 end
 
@@ -84,7 +97,9 @@ end
 -- @return Vector The mins of the AABB
 -- @return Vector The maxs of the AABB
 function physobj_methods:getAABB()
-	local a, b = Phys_GetAABB(unwrap(self))
+	local phys = unwrap(self)
+	if is_cloak(phys) then return vwrap(Vector()), vwrap(Vector()) end
+	local a, b = Phys_GetAABB(phys)
 	return vwrap(a), vwrap(b)
 end
 
@@ -94,14 +109,18 @@ end
 -- @param Vector vec The point to get velocity of in local reference frame
 -- @return Vector Vector Local velocity of the physics object at the point
 function physobj_methods:getVelocityAtPoint(vec)
-	return vwrap(Phys_GetVelocityAtPoint(unwrap(self), vunwrap1(vec)))
+	local phys = unwrap(self)
+	if is_cloak(phys) then return vwrap(Vector()) end
+	return vwrap(Phys_GetVelocityAtPoint(phys, vunwrap1(vec)))
 end
 
 --- Gets the angular velocity of the physics object
 -- @shared
 -- @return Vector Vector angular velocity of the physics object
 function physobj_methods:getAngleVelocity()
-	return vwrap(Phys_GetAngleVelocity(unwrap(self)))
+	local phys = unwrap(self)
+	if is_cloak(phys) then return vwrap(Vector()) end
+	return vwrap(Phys_GetAngleVelocity(phys))
 end
 
 --- Gets the mass of the physics object
@@ -136,28 +155,36 @@ end
 -- @param Vector vec The vector to transform
 -- @return Vector The transformed vector
 function physobj_methods:worldToLocal(vec)
-	return vwrap(Phys_WorldToLocal(unwrap(self), vunwrap1(vec)))
+	local phys = unwrap(self)
+	if is_cloak(phys) then return vwrap(Vector()) end
+	return vwrap(Phys_WorldToLocal(phys, vunwrap1(vec)))
 end
 
 --- Returns a vector in the reference frame of the world from the local frame of the physicsobject
 -- @param Vector vec The vector to transform
 -- @return Vector The transformed vector
 function physobj_methods:localToWorld(vec)
-	return vwrap(Phys_LocalToWorld(unwrap(self), vunwrap1(vec)))
+	local phys = unwrap(self)
+	if is_cloak(phys) then return vwrap(Vector()) end
+	return vwrap(Phys_LocalToWorld(phys, vunwrap1(vec)))
 end
 
 --- Returns a normal vector in the local reference frame of the physicsobject from the world frame
 -- @param Vector vec The normal vector to transform
 -- @return Vector The transformed vector
 function physobj_methods:worldToLocalVector(vec)
-	return vwrap(Phys_WorldToLocalVector(unwrap(self), vunwrap1(vec)))
+	local phys = unwrap(self)
+	if is_cloak(phys) then return vwrap(Vector()) end
+	return vwrap(Phys_WorldToLocalVector(phys, vunwrap1(vec)))
 end
 
 --- Returns a normal vector in the reference frame of the world from the local frame of the physicsobject
 -- @param Vector vec The normal vector to transform
 -- @return Vector The transformed vector
 function physobj_methods:localToWorldVector(vec)
-	return vwrap(Phys_LocalToWorldVector(unwrap(self), vunwrap1(vec)))
+	local phys = unwrap(self)
+	if is_cloak(phys) then return vwrap(Vector()) end
+	return vwrap(Phys_LocalToWorldVector(phys, vunwrap1(vec)))
 end
 
 --- Returns a table of MeshVertex structures where each 3 vertices represent a triangle. See: http://wiki.facepunch.com/gmod/Structures/MeshVertex
@@ -560,8 +587,10 @@ if SERVER then
 	-- number Material - Surface Property ID of our physics obj
 	-- number MaterialOther - Surface Property ID of the physics obj we came in contact with
 	function physobj_methods:getFrictionSnapshot()
+		local phys = unwrap(self)
+		if is_cloak(phys) then return {} end
 		local result = {}
-		for k, v in ipairs(Phys_GetFrictionSnapshot(unwrap(self))) do
+		for k, v in ipairs(Phys_GetFrictionSnapshot(phys)) do
 			result[k] = SF.StructWrapper(instance, v)
 		end
 		return result

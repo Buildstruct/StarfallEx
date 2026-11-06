@@ -18,14 +18,6 @@ local Vec_SetUnpacked = VEC_META.SetUnpacked
 local Vec_Unpack = VEC_META.Unpack
 local Ent_GetTable = ENT_META.GetTable
 
-local BSA
-local function is_cloak(instance, self)
-	BSA = BSA or _G.BSA
-	if not BSA then return false end
-	if instance.player == SF.Superuser then return false end
-	return BSA.Players.IsCloakedFrom(self, instance.player)
-end
-
 registerprivilege("render.screen", "Render Screen", "Allows the user to render to a starfall screen", { client = {} })
 registerprivilege("render.offscreen", "Render Screen", "Allows the user to render without a screen", { client = {} })
 registerprivilege("render.renderView", "Render View", "Allows the user to render the world again with custom perspective", { client = {} })
@@ -229,7 +221,7 @@ end, cleanupRender)
 -- @param Angle angles View angles
 -- @param number fov View FOV
 SF.hookAdd("RenderScene", "renderscene", function(instance, origin, angles, fov)
-	if is_cloak(instance, LocalPlayer()) then return false end
+	if SF.IsViewCloaked(instance) or SF.HasForeignCloakedPlayers(instance) then return false end
 	if instance.player == SF.Superuser or haspermission(instance, nil, "render.renderscene") then
 		instance:prepareRender()
 		instance.data.render.isScenic = true
@@ -441,7 +433,7 @@ SF.hookAdd("PostDrawSkyBox", nil, hudPrepareSafeArgs, cleanupRender)
 -- @param number zfar Current far plane of the camera
 -- @return table Table containing information for the camera. {origin=camera origin, angles=camera angles, fov=camera fov, znear=znear, zfar=zfar, drawviewer=drawviewer, ortho=ortho table}
 SF.hookAdd("CalcView", nil, function(instance, ply, pos, ang, fov, znear, zfar)
-	if is_cloak(instance, LocalPlayer()) then return false end
+	if SF.IsViewCloaked(instance) or SF.HasForeignCloakedPlayers(instance) then return false end
 	return instance.player == SF.Superuser or haspermission(instance, nil, "render.calcview"),
 		{instance.Types.Vector.Wrap(pos), instance.Types.Angle.Wrap(ang), fov, znear, zfar}
 end, function(instance, tbl)
@@ -478,6 +470,7 @@ end)
 -- @return Vector New position (you must return a value)
 -- @return Angle New angle (you must return a value)
 SF.hookAdd("CalcViewModelView", nil, function(instance, wep, vm, oldPos, oldAng, pos, ang)
+	if SF.IsViewCloaked(instance) or SF.HasForeignCloakedPlayers(instance) then return false end
 	return instance.player == SF.Superuser or haspermission(instance, nil, "render.calcviewmodelview"),
 		{instance.Types.Weapon.Wrap(wep), instance.Types.Entity.Wrap(vm), instance.Types.Vector.Wrap(oldPos), instance.Types.Angle.Wrap(oldAng), instance.Types.Vector.Wrap(pos), instance.Types.Angle.Wrap(ang)}
 	end, function(instance, tbl)
@@ -655,7 +648,7 @@ end
 --- Call EyePos()
 -- @return Vector The origin of the current render context as calculated by calcview.
 function render_library.getEyePos()
-	if is_cloak(instance, LocalPlayer()) then return vwrap(Vector()) end
+	if SF.IsViewCloaked(instance) then return vwrap(Vector()) end
 	return vwrap(EyePos())
 end
 
@@ -664,14 +657,14 @@ render_library.getOrigin = render_library.getEyePos
 --- Call EyeAngles()
 -- @return Angle The angles of the current render context as calculated by calcview.
 function render_library.getAngles()
-	if is_cloak(instance, LocalPlayer()) then return awrap(Angle()) end
+	if SF.IsViewCloaked(instance) then return awrap(Angle()) end
 	return awrap(EyeAngles())
 end
 
 --- Call EyeVector()
 -- @return Vector The normal vector of the current render context as calculated by calcview, similar to render.getAngles.
 function render_library.getEyeVector()
-	if is_cloak(instance, LocalPlayer()) then return vwrap(Vector()) end
+	if SF.IsViewCloaked(instance) then return vwrap(Vector()) end
 	return vwrap(EyeVector())
 end
 
@@ -2361,11 +2354,15 @@ end
 -- @return number? X position or nil if the player is not aiming at the screen
 -- @return number? Y position or nil if the player is not aiming at the screen
 function render_library.cursorPos(ply, screen)
+	local lp = SF.GetLocalPlayer()
+	local is_owner = instance.player == SF.Superuser or instance.player == lp
 	if ply~=nil then
 		ply = eunwrap(ply)
+		if not is_owner and ply == lp then return end
 		if not ply:IsPlayer() then SF.Throw("Entity isn't a player", 2) end
 	else
-		ply = LocalPlayer()
+		if not is_owner then return end
+		ply = lp
 	end
 
 	if screen~=nil then screen = eunwrap(screen) else screen = renderdata.renderEnt end
@@ -2417,7 +2414,13 @@ end
 -- @param boolean? curview If true, returns the current calculated view setup, otherwise returns original player view setup
 -- @return table A table describing the current view setup. See https://wiki.facepunch.com/gmod/Structures/ViewSetup for more information.
 function render_library.getViewSetup(curview)
-	return SF.StructWrapper(instance, render.GetViewSetup(curview), "ViewSetup")
+	local setup = render.GetViewSetup(curview)
+	if SF.IsViewCloaked(instance) then
+		setup = table.Copy(setup)
+		setup.origin = Vector(0, 0, 0)
+		setup.angles = Angle(0, 0, 0)
+	end
+	return SF.StructWrapper(instance, setup, "ViewSetup")
 end
 
 --- Returns the entity currently being rendered to
@@ -2428,6 +2431,7 @@ end
 
 --- Dumps the current render target and allows the pixels to be accessed by render.readPixel.
 function render_library.capturePixels()
+	if SF.HasForeignCloakedPlayers(instance) then SF.Throw("Cannot capture the screen while cloaked players are visible.", 2) end
 	if not renderdata.isRendering then SF.Throw("Not in rendering hook.", 2) end
 	if not renderdata.usingRT then SF.Throw("Not in rendertarget context.", 2) end
 	render.CapturePixels()
@@ -2439,6 +2443,7 @@ end
 function render_library.captureImage(captureData)
 	-- checkluatype(captureData, TYPE_TABLE)
 	checkpermission(instance, nil, "render.captureImage")
+	if SF.HasForeignCloakedPlayers(instance) then SF.Throw("Cannot capture the screen while cloaked players are visible.", 2) end
 
 	if not renderdata.isRendering then SF.Throw("Not in rendering hook.", 2) end
 	if not renderdata.usingRT then SF.Throw("Not in rendertarget context.", 2) end
@@ -2506,6 +2511,7 @@ local startpos_vec, endpos_vec = Vector(0, 0, 0), Vector(0, 0, 0)
 -- @param Vector endpos The ending vector
 -- @return Color The color
 function render_library.traceSurfaceColor(startpos, endpos)
+	if SF.HasForeignCloakedPlayers(instance) then SF.Throw("Cannot trace surfaces while cloaked players are visible.", 2) end
 	Vec_SetUnpacked(startpos_vec, startpos[1], startpos[2], startpos[3])
 	Vec_SetUnpacked(endpos_vec, endpos[1], endpos[2], endpos[3])
 	local r, g, b = Vec_Unpack(render.GetSurfaceColor(startpos_vec, endpos_vec))

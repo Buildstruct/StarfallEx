@@ -191,6 +191,10 @@ end
 
 function SF.Instance:CreateWrapper(metatable, typedata)
 
+	local function is_cloaked(value)
+		return SF.IsCloaked(self, value)
+	end
+
 	local wrap, unwrap
 	-- If the type already has wrappers, dont re-assign
 	if typedata.weakwrapper==nil or typedata.weaksensitive==nil then
@@ -214,6 +218,7 @@ function SF.Instance:CreateWrapper(metatable, typedata)
 
 			function wrap(value)
 				if value == nil then return nil end
+				if is_cloaked(value) then return nil end
 				if sensitive2sf[value] then return sensitive2sf[value] end
 				local tbl = setmetatable({}, metatable)
 				sensitive2sf[value] = tbl
@@ -225,6 +230,7 @@ function SF.Instance:CreateWrapper(metatable, typedata)
 		else
 			function wrap(value)
 				if value == nil then return nil end
+				if is_cloaked(value) then return nil end
 				if sensitive2sf[value] then return sensitive2sf[value] end
 				local tbl = setmetatable({}, metatable)
 				sensitive2sf[value] = tbl

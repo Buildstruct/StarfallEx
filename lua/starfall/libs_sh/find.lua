@@ -251,15 +251,17 @@ function find_library.playersByName(name, casesensitive, exact)
 	end
 
 	if exact then
-		for k, ply in ipairs(player.GetAll()) do
+		for _, ply in player.Iterator() do
 			if getName(ply) == name then
-				ret[#ret+1] = plywrap(ply)
+				local e = plywrap(ply)
+				if e then ret[#ret+1] = e end
 			end
 		end
 	else
-		for k, ply in ipairs(player.GetAll()) do
+		for _, ply in player.Iterator() do
 			if string.find(getName(ply), name, 1, true) then
-				ret[#ret+1] = plywrap(ply)
+				local e = plywrap(ply)
+				if e then ret[#ret+1] = e end
 			end
 		end
 	end

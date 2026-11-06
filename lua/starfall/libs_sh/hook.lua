@@ -15,12 +15,28 @@ end
 
 local add = SF.hookAdd
 
-local BSA
 local function is_cloak(instance, ent)
-	BSA = BSA or _G.BSA
-	if not BSA then return false end
-	if instance.player == SF.Superuser then return false end
-	return BSA.Players.IsCloakedFrom(ent, instance.player)
+	return SF.IsCloaked(instance, ent)
+end
+
+local function is_foreign_client(instance)
+	return CLIENT and instance.player ~= SF.Superuser and instance.player ~= SF.GetLocalPlayer()
+end
+
+local function cloak_hook(instance, ply, ...)
+	if is_cloak(instance, ply) then return false end
+	return true, instance.Sanitize({ply, ...})
+end
+
+local function movement_hook(instance, ply, ...)
+	if is_foreign_client(instance) then return false end
+	if is_cloak(instance, ply) then return false end
+	return true, instance.Sanitize({ply, ...})
+end
+
+local function owner_hook(instance, ...)
+	if is_foreign_client(instance) then return false end
+	return true, instance.Sanitize({...})
 end
 
 if SERVER then
@@ -124,14 +140,14 @@ if SERVER then
 	-- @param Player ply Player who died
 	-- @param Entity inflictor Entity used to kill the player
 	-- @param Entity attacker Entity that killed the player
-	add("PlayerDeath")
+	add("PlayerDeath", nil, cloak_hook)
 
 	--- Called when a player disconnects
 	-- @name PlayerDisconnected
 	-- @class hook
 	-- @server
 	-- @param Player ply Player that disconnected
-	add("PlayerDisconnected")
+	add("PlayerDisconnected", nil, cloak_hook)
 
 	--- Called when a player gets hurt, uses the player_hurt game event clientside.
 	-- @name PlayerHurt
@@ -141,7 +157,7 @@ if SERVER then
 	-- @param Entity attacker Entity causing damage to the player
 	-- @param number newHealth New health of the player
 	-- @param number damageTaken On server, Amount of damage the player has taken, nil on client.
-	add("PlayerHurt")
+	add("PlayerHurt", nil, cloak_hook)
 
 	--- Called when a player spawns for the first time
 	-- @name PlayerInitialSpawn
@@ -149,14 +165,14 @@ if SERVER then
 	-- @server
 	-- @param Player ply Player who spawned
 	-- @param boolean transition If true, the player just spawned from a map transition.
-	add("PlayerInitialSpawn")
+	add("PlayerInitialSpawn", nil, cloak_hook)
 
 	--- Called when a player spawns
 	-- @name PlayerSpawn
 	-- @class hook
 	-- @server
 	-- @param Player ply Player who spawned
-	add("PlayerSpawn")
+	add("PlayerSpawn", nil, cloak_hook)
 
 	--- Called when a player has changed team using Player:SetTeam
 	-- @name PlayerChangedTeam
@@ -165,7 +181,7 @@ if SERVER then
 	-- @param Player ply Player whose team has changed
 	-- @param number oldTeam Index of the team the player was originally in. See team.getName and the team library
 	-- @param number newTeam Index of the team the player has changed to.
-	add("PlayerChangedTeam")
+	add("PlayerChangedTeam", nil, cloak_hook)
 
 	--- Called when a players enters a vehicle
 	-- @name PlayerEnteredVehicle
@@ -199,12 +215,13 @@ if SERVER then
 	-- @param string text Content of the message
 	-- @param boolean teamChat True if team chat
 	-- @return string? New text. "" to stop from displaying. Nil to keep original.
-	add("PlayerSay", nil, nil, returnOnlyOnYourself, true)
+	add("PlayerSay", nil, cloak_hook, returnOnlyOnYourself, true)
 	
 	-- Serverside implementation of playerchat
 	gameevent.Listen("player_say")
 	add("player_say", "playerchat", function(instance, data)
 		local ply = Player(data.userid)
+		if is_cloak(instance, ply) then return false end
 		return true, {instance.WrapObject(ply), data.text, data.teamonly, not ply:Alive()}
 	end)
 
@@ -213,7 +230,7 @@ if SERVER then
 	-- @class hook
 	-- @server
 	-- @param Player ply Player that sprayed
-	add("PlayerSpray")
+	add("PlayerSpray", nil, cloak_hook)
 
 	--- Called when a player holds their use key and looks at an entity.
 	-- Will continuously run.
@@ -234,7 +251,7 @@ if SERVER then
 	-- @param Player ply Player switching flashlight
 	-- @param boolean state New flashlight state. True if on.
 	-- @return boolean? Return false to prevent switching flashlight state. (Requires a connected HUD or owner of the chip).
-	add("PlayerSwitchFlashlight", nil, nil, function(instance, args, ply)
+	add("PlayerSwitchFlashlight", nil, cloak_hook, function(instance, args, ply)
 		if not args then return end
 
 		local ret = args[2]
@@ -250,7 +267,7 @@ if SERVER then
 	-- @server
 	-- @param Player ply Player
 	-- @param Weapon wep Weapon
-	add("PlayerCanPickupWeapon", nil, nil, returnOnlyOnYourselfFalse)
+	add("PlayerCanPickupWeapon", nil, movement_hook, returnOnlyOnYourselfFalse)
 
 	-- Register privileges
 	registerprivilege("entities.blockDamage", "Block Damage", "Allows the user to block incoming entity damage", { entities = {} })
@@ -335,13 +352,13 @@ else
 	-- @class hook
 	-- @client
 	-- @param boolean isTeamChat Whether they're typing in team chat
-	add("StartChat")
+	add("StartChat", nil, owner_hook)
 	
 	--- Called when the local player closes their chat window.
 	-- @name FinishChat
 	-- @class hook
 	-- @client
-	add("FinishChat")
+	add("FinishChat", nil, owner_hook)
 
 	--- Called when a chat message is printed your chat window (chip owner only)
 	-- @name PlayerChat
@@ -352,7 +369,10 @@ else
 	-- @param boolean team Whether the message was team only
 	-- @param boolean isdead Whether the message was send from a dead player
 	-- @return boolean Return true to hide the message. Can only be done for the owner of the chip
-	add("OnPlayerChat", "playerchat", nil, function(instance, ret)
+	add("OnPlayerChat", "playerchat", function(instance, ply, text, team, isdead)
+		if is_cloak(instance, ply) then return false end
+		return true, {instance.WrapObject(ply), text, team, isdead}
+	end, function(instance, ret)
 		if ret[1] and ret[2] and (instance.player == LocalPlayer() or instance.player == SF.Superuser) then return true end
 	end)
 
@@ -363,6 +383,7 @@ else
 	-- @client
 	-- @param string txt Text it was changed to
 	add("ChatTextChanged", nil, function(instance, txt)
+		if is_foreign_client(instance) then return false end
 		if instance.player == SF.Superuser or haspermission(instance, nil, "input.chat") then
 			return true, { txt }
 		end
@@ -376,7 +397,7 @@ else
 	-- @client
 	-- @param string text The text currently in the chatbox
 	-- @return string? Return a string to change what's currently in the chat box (Requires a connected HUD or owner of the chip).
-	add("OnChatTab", nil, nil, function(instance, args, text)
+	add("OnChatTab", nil, owner_hook, function(instance, args, text)
 		if not args then return end 
 
 		local newText = args[2]
@@ -406,7 +427,9 @@ else
 	-- Check serverside playerhurt for docs
 	gameevent.Listen("player_hurt")
 	SF.hookAdd("player_hurt", "playerhurt", function(instance, data)
-		return true, {instance.WrapObject(Player(data.userid)), instance.WrapObject(Player(data.attacker)), data.health}
+		local ply = Player(data.userid)
+		if is_cloak(instance, ply) then return false end
+		return true, {instance.WrapObject(ply), instance.WrapObject(Player(data.attacker)), data.health}
 	end)
 
 	--- Called when a player starts using voice chat.
@@ -415,7 +438,7 @@ else
 	-- @client
 	-- @param Player ply Player who started using voice chat
 	-- @return boolean? Return true to hide CHudVoiceStatus (Requires a connected HUD).
-	add("PlayerStartVoice", nil, nil, function(instance, args, ply)
+	add("PlayerStartVoice", nil, cloak_hook, function(instance, args, ply)
 		if args[1] and args[2] == true and SF.IsHUDActive(instance.entity) then
 			return true
 		end
@@ -429,7 +452,7 @@ else
 	-- @param number localFOV The player's current FOV
 	-- @param number defaultFOV The player's default/original FOV
 	-- @return number? Return a number which multiplies the sensitivity. -1 will do nothing but prevent other hooks overriding (Requires a connected HUD).
-	add("AdjustMouseSensitivity", nil, nil, function(instance, args, ply)
+	add("AdjustMouseSensitivity", nil, owner_hook, function(instance, args, ply)
 		if args[1] and isnumber(args[2]) and SF.IsHUDActive(instance.entity) then
 			return args[2]
 		end
@@ -440,26 +463,29 @@ else
 	-- @class hook
 	-- @client
 	-- @param Player ply Player who stopped talking
-	add("PlayerEndVoice")
+	add("PlayerEndVoice", nil, cloak_hook)
 
 	--- Called when the player opens the context menu
 	-- @name OnContextMenuOpen
 	-- @class hook
 	-- @client
-	add("OnContextMenuOpen")
+	add("OnContextMenuOpen", nil, owner_hook)
 
 	--- Called when the player closes the context menu
 	-- @name OnContextMenuClose
 	-- @class hook
 	-- @client
-	add("OnContextMenuClose")
+	add("OnContextMenuClose", nil, owner_hook)
 
 	--- Called whenever a CUserCmd is made for the local player. This runs twice per frame, one for movement one for camera. You can use cmd:getCommandNumber to check which one it is if you want to only run on one of them. Camera will have a 0 command number.
 	-- @name CreateMove
 	-- @class hook
 	-- @client
 	-- @param CUserCmd cmd The UserCmd being created
-	add("CreateMove")
+	add("CreateMove", nil, function(instance, cmd)
+		if is_foreign_client(instance) then return false end
+		return true, instance.Sanitize({cmd})
+	end)
 end
 
 -- Shared hooks
@@ -472,7 +498,7 @@ end
 -- @shared
 -- @param Player ply Player toggling noclip
 -- @param boolean newState New noclip state. True if on.
-add("PlayerNoClip")
+add("PlayerNoClip", nil, movement_hook)
 
 --- Called whenever a player steps
 -- @name PlayerFootstep
@@ -501,7 +527,7 @@ end, returnOnlyOnYourself )
 -- @shared
 -- @param Player ply Player who jumped
 -- @param number speed The velocity/impulse of the jump
-add("OnPlayerJump")
+add("OnPlayerJump", nil, movement_hook)
 
 --- Called when a player makes contact with the ground after a jump or a fall.
 -- @name OnPlayerHitGround
@@ -511,7 +537,7 @@ add("OnPlayerJump")
 -- @param boolean inWater Did the player land in water?
 -- @param boolean onFloater Did the player land on an object floating in the water?
 -- @param number speed The speed at which the player hit the ground
-add("OnPlayerHitGround")
+add("OnPlayerHitGround", nil, movement_hook)
 
 --- Called when a player presses a key
 -- @name KeyPress
@@ -519,7 +545,7 @@ add("OnPlayerHitGround")
 -- @shared
 -- @param Player ply Player pressing the key
 -- @param number key The key being pressed
-add("KeyPress")
+add("KeyPress", nil, movement_hook)
 
 --- Called when a player releases a key
 -- @name KeyRelease
@@ -527,7 +553,7 @@ add("KeyPress")
 -- @shared
 -- @param Player ply Player releasing the key
 -- @param number key The key being released
-add("KeyRelease")
+add("KeyRelease", nil, movement_hook)
 
 --- Called when a player punts with the gravity gun
 -- @name GravGunPunt
@@ -570,7 +596,7 @@ end)
 -- @param Player ply Player changing weapon
 -- @param Weapon oldwep Old weapon
 -- @param Weapon newweapon New weapon
-add("PlayerSwitchWeapon", nil, nil, returnOnlyOnYourselfFalse)
+add("PlayerSwitchWeapon", nil, movement_hook, returnOnlyOnYourselfFalse)
 
 --- Called when a player's reserve ammo count changes.
 -- @name PlayerAmmoChanged
@@ -580,7 +606,7 @@ add("PlayerSwitchWeapon", nil, nil, returnOnlyOnYourselfFalse)
 -- @param number ammoID The ammo type ID
 -- @param number oldcount Previous ammo count
 -- @param number newcount The new ammo count
-add("PlayerAmmoChanged")
+add("PlayerAmmoChanged", nil, movement_hook)
 
 --- Called when a player animation event occurs
 -- @name DoAnimationEvent
@@ -589,7 +615,7 @@ add("PlayerAmmoChanged")
 -- @param Player ply The player being animated
 -- @param number event The event id
 -- @param number data The event data
-add("DoAnimationEvent")
+add("DoAnimationEvent", nil, cloak_hook)
 
 -- Entity hooks
 
@@ -619,7 +645,7 @@ add("EntityRemoved")
 -- @shared
 -- @param Player ply Player who broke it
 -- @param Entity ent Entity broken
-add("PropBreak")
+add("PropBreak", nil, cloak_hook)
 
 --- Called every time a bullet is fired from an entity
 -- @name EntityFireBullets
@@ -633,8 +659,9 @@ add("EntityFireBullets", nil, function(instance, ent, data)
 	return true, { instance.WrapObject(ent), SF.StructWrapper(instance, data, "Bullet") }
 end, function(instance, ret, ent, data)
 	if ret[1] and isfunction(ret[2]) then
+		local endpos = data.Src and data.Dir and (data.Src + data.Dir * (data.Distance or 56756))
 		data.Callback = function(attacker, tr, dmginfo)
-			instance:runFunction(ret[2], instance.WrapObject(attacker), SF.StructWrapper(instance, SF.SanitizeTraceResult(instance, tr), "TraceResult"))
+			instance:runFunction(ret[2], instance.WrapObject(attacker), SF.StructWrapper(instance, SF.SanitizeTraceResult(instance, tr, endpos), "TraceResult"))
 		end
 		return true
 	end
@@ -648,8 +675,9 @@ end, true)
 -- @param table data A table containing Trace (See http://wiki.facepunch.com/gmod/Structures/TraceResult) and AmmoType, Tracer, Damage, Force, Attacker, TracerName (see http://wiki.facepunch.com/gmod/Structures/Bullet)
 add("PostEntityFireBullets", nil, function(instance, ent, data)
 	if is_cloak(instance, ent) then return false end
+	local endpos = data.Src and data.Dir and (data.Src + data.Dir * (data.Distance or 56756))
 	local ret = SF.StructWrapper(instance, data, "Bullet")
-	ret.Trace = SF.StructWrapper(instance, SF.SanitizeTraceResult(instance, data.Trace), "TraceResult")
+	ret.Trace = SF.StructWrapper(instance, SF.SanitizeTraceResult(instance, data.Trace, endpos), "TraceResult")
 	return true, {instance.WrapObject(ent), ret}
 end)
 
@@ -704,7 +732,7 @@ add("Tick")
 -- @shared
 -- @param Player ply Player whose command is being processed
 -- @param CUserCmd cmd The UserCmd being processed
-add("StartCommand")
+add("StartCommand", nil, movement_hook)
 
 --- Called each UserCmd for each player to transfer information from the UserCmd to the CMoveData before the move is processed.
 -- @name SetupMove
@@ -713,7 +741,7 @@ add("StartCommand")
 -- @param Player ply Player whose move is being setup
 -- @param CMoveData move The MoveData being processed
 -- @param CUserCmd cmd The UserCmd being processed
-add("SetupMove")
+add("SetupMove", nil, movement_hook)
 
 --- Called each UserCmd for each player after their move has been processed.
 -- @name FinishMove
@@ -721,7 +749,7 @@ add("SetupMove")
 -- @shared
 -- @param Player ply Player whose move is being finished
 -- @param CMoveData move The MoveData being processed
-add("FinishMove")
+add("FinishMove", nil, movement_hook)
 
 --- Called when starfall chip errors
 -- @name StarfallError
@@ -745,7 +773,9 @@ end)
 -- @param string newname Name after change.
 gameevent.Listen("player_changename")
 add("player_changename", "playerchangename", function(instance, data)
-	return true, {instance.WrapObject(Player(data.userid)), data.oldname, data.newname}
+	local ply = Player(data.userid)
+	if is_cloak(instance, ply) then return false end
+	return true, {instance.WrapObject(ply), data.oldname, data.newname}
 end)
 
 --- Called when a player connects to the server. (Game Event)
@@ -772,7 +802,9 @@ end)
 -- @param boolean isbot False if the player isn't a bot, true if they are.
 gameevent.Listen("player_disconnect")
 add("player_disconnect", "playerdisconnect", function(instance, data)
-	return true, {data.networkid, data.name, instance.WrapObject(Player(data.userid)), data.reason, data.bot == 1}
+	local ply = Player(data.userid)
+	if is_cloak(instance, ply) then return false end
+	return true, {data.networkid, data.name, instance.WrapObject(ply), data.reason, data.bot == 1}
 end)
 
 --- Deals with hooks

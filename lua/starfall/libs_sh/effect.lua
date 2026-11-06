@@ -75,7 +75,6 @@ SF.RegisterLibrary("effect")
 
 return function(instance)
 local checkpermission = instance.player ~= SF.Superuser and SF.Permissions.check or function() end
-local BSA
 
 local effect_library = instance.Libraries.effect
 local ent_meta, ewrap, eunwrap = instance.Types.Entity, instance.Types.Entity.Wrap, instance.Types.Entity.Unwrap
@@ -90,15 +89,7 @@ instance:AddHook("initialize", function()
 end)
 
 local function is_cloaked_chain(ent)
-	BSA = BSA or _G.BSA
-	if not BSA or instance.player == SF.Superuser then return false end
-
-	while ent and ent:IsValid() do
-		if BSA.Players.IsCloakedFrom(ent, instance.player) then return true end
-		ent = ent:GetParent()
-	end
-
-	return false
+	return SF.IsCloakedFrom(instance, ent)
 end
 
 ----------------------------------------------------------------------

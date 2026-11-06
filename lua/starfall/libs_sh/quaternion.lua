@@ -184,12 +184,8 @@ local function clone(q)
 	return setmetatable({q[1], q[2], q[3], q[4]}, quat_meta)
 end
 
-local BSA
 local function is_cloak(ent)
-	BSA = BSA or _G.BSA
-	if not BSA then return false end
-	if instance.player == SF.Superuser then return false end
-	return BSA.Players.IsCloakedFrom(ent, instance.player)
+	return SF.IsCloaked(instance, ent)
 end
 
 local vunwrap1, vunwrap2

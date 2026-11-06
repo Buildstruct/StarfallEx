@@ -81,12 +81,8 @@ instance:AddHook("initialize", function()
 	vehicle_meta.__tostring = ent_meta.__tostring
 end)
 
-local BSA
 local function is_cloak(ent)
-	BSA = BSA or _G.BSA
-	if not BSA then return false end
-	if instance.player == SF.Superuser then return false end
-	return BSA.Players.IsCloakedFrom(ent, instance.player)
+	return SF.IsCloaked(instance, ent)
 end
 
 --- Returns the driver of the vehicle
