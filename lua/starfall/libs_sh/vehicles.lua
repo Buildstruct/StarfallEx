@@ -142,10 +142,14 @@ end
 function vehicle_methods:getVehicleViewPosition(role)
 	if role then
 		checkluatype(role, TYPE_NUMBER)
+	else
+		role = 0
 	end
 
 	local veh = unwrap(self)
 	if is_cloak(veh) then return vwrap(Vector()), awrap(Angle()), 0 end
+	local passenger = role == 0 and Veh_GetDriver(veh) or Veh_GetPassenger(veh, role)
+	if Ent_IsValid(passenger) and is_cloak(passenger) then return vwrap(Vector()), awrap(Angle()), 0 end
 	local pos, ang, fov = Veh_GetVehicleViewPosition(veh, role)
 
 	return vwrap(pos), awrap(ang), fov
