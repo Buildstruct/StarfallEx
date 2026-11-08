@@ -2039,11 +2039,13 @@ end
 
 local cloaked_frame = -1
 local cloaked_players
+local cloaked_set
 local cloak_change_registered
 
 local function invalidate_cloak_cache()
 	cloaked_frame = -1
 	cloaked_players = nil
+	cloaked_set = nil
 end
 
 local function register_cloak_change()
@@ -2069,36 +2071,48 @@ function SF.GetCloakedPlayers()
 		local BSA = _G.BSA
 		if not BSA or not BSA.Players or not BSA.Players.IsCloak then
 			cloaked_players = nil
+			cloaked_set = nil
 		else
-			local list
+			local list, set
 			for _, ply in player.Iterator() do
 				if BSA.Players.IsCloak(ply) then
 					list = list or {}
 					list[#list+1] = ply
+					set = set or {}
+					set[ply] = ply
 				end
 			end
 			cloaked_players = list
+			cloaked_set = set
 		end
 	end
 	return cloaked_players
 end
 
-function SF.IsCloaked(instance, ent)
+local function is_cloaked_in(instance, ent, set)
 	if not ent or instance.player == SF.Superuser or not isentity(ent) then return false end
-	if not SF.GetCloakedPlayers() then return false end
+	local cloak = set and set[ent]
+	if not cloak then return false end
 	local BSA = _G.BSA
-	if not BSA or not BSA.Players or not BSA.Players.IsCloakedFrom then return false end
-	if not Ent_IsValid(ent) or Ent_IsWorld(ent) then return false end
-	return BSA.Players.IsCloakedFrom(ent, instance.player)
+	if not BSA or not BSA.Players or not BSA.Players.CanSeeCloak then return false end
+	return not BSA.Players.CanSeeCloak(instance.player, cloak)
+end
+
+function SF.IsCloaked(instance, ent)
+	if not ent then return false end
+	SF.GetCloakedPlayers()
+	return is_cloaked_in(instance, ent, cloaked_set)
 end
 
 function SF.IsCloakedFrom(instance, ent)
 	if not ent or instance.player == SF.Superuser or not isentity(ent) then return false end
-	if not SF.GetCloakedPlayers() then return false end
+	SF.GetCloakedPlayers()
+	if not cloaked_set then return false end
 	local BSA = _G.BSA
-	if not BSA or not BSA.Players or not BSA.Players.IsCloakedFrom then return false end
+	if not BSA or not BSA.Players or not BSA.Players.CanSeeCloak then return false end
 	while Ent_IsValid(ent) and not Ent_IsWorld(ent) do
-		if BSA.Players.IsCloakedFrom(ent, instance.player) then return true end
+		local cloak = cloaked_set[ent]
+		if cloak and not BSA.Players.CanSeeCloak(instance.player, cloak) then return true end
 		ent = Ent_GetParent(ent)
 	end
 	return false
@@ -2133,14 +2147,11 @@ if CLIENT then
 
 	function SF.IsViewCloaked(instance)
 		if instance.player == SF.Superuser then return false end
-		if not SF.GetCloakedPlayers() then return false end
-		local BSA = _G.BSA
-		if not BSA or not BSA.Players or not BSA.Players.IsCloakedFrom then return false end
 		local lp = SF.GetLocalPlayer()
-		local view = SF.GetViewEntity()
 		if not Ent_IsValid(lp) then return false end
-		if BSA.Players.IsCloakedFrom(lp, instance.player) then return true end
-		return view ~= lp and BSA.Players.IsCloakedFrom(view, instance.player)
+		if SF.IsCloaked(instance, lp) then return true end
+		local view = SF.GetViewEntity()
+		return view ~= lp and SF.IsCloaked(instance, view)
 	end
 
 	function SF.HasForeignCloakedPlayers(instance)
