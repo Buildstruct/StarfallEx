@@ -477,7 +477,7 @@ function player_methods:getEyeTrace()
 		trace = util.TraceLine({
 			start = Ply_GetShootPos(e),
 			endpos = endpos,
-			filter = function(ent) return ent == e or ent == vehicle or SF.IsCloakedFrom(instance, ent) end,
+			filter = function(ent) return ent ~= e and ent ~= vehicle and not SF.IsCloakedFrom(instance, ent) end,
 			mask = MASK_SOLID,
 		})
 	end

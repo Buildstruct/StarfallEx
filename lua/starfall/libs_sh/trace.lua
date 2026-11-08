@@ -58,26 +58,45 @@ local function convertFilter(filter, whitelist, skip_cloak)
 	end
 
 	if filter == nil then
-		if whitelist then return function() return true end, true end
-		return function(ent) return SF.IsCloakedFrom(instance, ent) end, true
+		if whitelist then return function(ent) return not SF.IsCloakedFrom(instance, ent) end, true end
+		local cloaked = SF.GetCloakedPlayers()
+		if not cloaked then return nil, false end
+		local l = {}
+		for i = 1, #cloaked do l[i] = cloaked[i] end
+		return l, false
 	elseif istable(filter) then
 		local meta = debug.getmetatable(filter)
-		local listed = {}
+		local l = {}
 		if meta==ent_meta or (meta and meta.supertype==ent_meta) then
-			listed[eunwrap(filter)] = true
+			local ent = eunwrap(filter)
+			if whitelist then
+				if SF.IsCloakedFrom(instance, ent) then return {}, false end
+				return ent, false
+			end
+			l[1] = ent
 		else
 			for i, v in ipairs(filter) do
-				listed[eunwrap(v)] = true
+				l[i] = eunwrap(v)
 			end
 		end
 		if whitelist then
-			return function(ent) return SF.IsCloakedFrom(instance, ent) or not listed[ent] end, true
-		else
-			return function(ent) return SF.IsCloakedFrom(instance, ent) or listed[ent] == true end, true
+			local filtered = {}
+			for i = 1, #l do
+				local ent = l[i]
+				if not SF.IsCloakedFrom(instance, ent) then
+					filtered[#filtered+1] = ent
+				end
+			end
+			return filtered, false
 		end
+		local cloaked = SF.GetCloakedPlayers()
+		if cloaked then
+			for i = 1, #cloaked do l[#l+1] = cloaked[i] end
+		end
+		return l, false
 	elseif isfunction(filter) then
 		return function(ent)
-			if SF.IsCloakedFrom(instance, ent) then return true end
+			if SF.IsCloakedFrom(instance, ent) then return false end
 			local ret = instance:runFunction(filter, owrap(ent))
 			if ret[1] then return ret[2] end
 		end, true
