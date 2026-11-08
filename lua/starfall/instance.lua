@@ -192,6 +192,8 @@ end
 function SF.Instance:CreateWrapper(metatable, typedata)
 
 	local function is_cloaked(value)
+		if value == nil or self.player == SF.Superuser or not isentity(value) then return false end
+		if CLIENT and value == SF.GetLocalPlayer() then return false end
 		return SF.IsCloaked(self, value)
 	end
 

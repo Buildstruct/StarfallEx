@@ -19,24 +19,9 @@ local function is_cloak(instance, ent)
 	return SF.IsCloaked(instance, ent)
 end
 
-local function is_foreign_client(instance)
-	return CLIENT and instance.player ~= SF.Superuser and instance.player ~= SF.GetLocalPlayer()
-end
-
 local function cloak_hook(instance, ply, ...)
 	if is_cloak(instance, ply) then return false end
 	return true, instance.Sanitize({ply, ...})
-end
-
-local function movement_hook(instance, ply, ...)
-	if is_foreign_client(instance) then return false end
-	if is_cloak(instance, ply) then return false end
-	return true, instance.Sanitize({ply, ...})
-end
-
-local function owner_hook(instance, ...)
-	if is_foreign_client(instance) then return false end
-	return true, instance.Sanitize({...})
 end
 
 if SERVER then
@@ -267,7 +252,7 @@ if SERVER then
 	-- @server
 	-- @param Player ply Player
 	-- @param Weapon wep Weapon
-	add("PlayerCanPickupWeapon", nil, movement_hook, returnOnlyOnYourselfFalse)
+	add("PlayerCanPickupWeapon", nil, cloak_hook, returnOnlyOnYourselfFalse)
 
 	-- Register privileges
 	registerprivilege("entities.blockDamage", "Block Damage", "Allows the user to block incoming entity damage", { entities = {} })
@@ -352,13 +337,13 @@ else
 	-- @class hook
 	-- @client
 	-- @param boolean isTeamChat Whether they're typing in team chat
-	add("StartChat", nil, owner_hook)
+	add("StartChat")
 	
 	--- Called when the local player closes their chat window.
 	-- @name FinishChat
 	-- @class hook
 	-- @client
-	add("FinishChat", nil, owner_hook)
+	add("FinishChat")
 
 	--- Called when a chat message is printed your chat window (chip owner only)
 	-- @name PlayerChat
@@ -383,7 +368,6 @@ else
 	-- @client
 	-- @param string txt Text it was changed to
 	add("ChatTextChanged", nil, function(instance, txt)
-		if is_foreign_client(instance) then return false end
 		if instance.player == SF.Superuser or haspermission(instance, nil, "input.chat") then
 			return true, { txt }
 		end
@@ -397,7 +381,7 @@ else
 	-- @client
 	-- @param string text The text currently in the chatbox
 	-- @return string? Return a string to change what's currently in the chat box (Requires a connected HUD or owner of the chip).
-	add("OnChatTab", nil, owner_hook, function(instance, args, text)
+	add("OnChatTab", nil, nil, function(instance, args, text)
 		if not args then return end 
 
 		local newText = args[2]
@@ -452,7 +436,7 @@ else
 	-- @param number localFOV The player's current FOV
 	-- @param number defaultFOV The player's default/original FOV
 	-- @return number? Return a number which multiplies the sensitivity. -1 will do nothing but prevent other hooks overriding (Requires a connected HUD).
-	add("AdjustMouseSensitivity", nil, owner_hook, function(instance, args, ply)
+	add("AdjustMouseSensitivity", nil, nil, function(instance, args, ply)
 		if args[1] and isnumber(args[2]) and SF.IsHUDActive(instance.entity) then
 			return args[2]
 		end
@@ -469,13 +453,13 @@ else
 	-- @name OnContextMenuOpen
 	-- @class hook
 	-- @client
-	add("OnContextMenuOpen", nil, owner_hook)
+	add("OnContextMenuOpen")
 
 	--- Called when the player closes the context menu
 	-- @name OnContextMenuClose
 	-- @class hook
 	-- @client
-	add("OnContextMenuClose", nil, owner_hook)
+	add("OnContextMenuClose")
 
 	--- Called whenever a CUserCmd is made for the local player. This runs twice per frame, one for movement one for camera. You can use cmd:getCommandNumber to check which one it is if you want to only run on one of them. Camera will have a 0 command number.
 	-- @name CreateMove
@@ -483,7 +467,7 @@ else
 	-- @client
 	-- @param CUserCmd cmd The UserCmd being created
 	add("CreateMove", nil, function(instance, cmd)
-		if is_foreign_client(instance) then return false end
+		if is_cloak(instance, SF.GetLocalPlayer()) then return false end
 		return true, instance.Sanitize({cmd})
 	end)
 end
@@ -498,7 +482,7 @@ end
 -- @shared
 -- @param Player ply Player toggling noclip
 -- @param boolean newState New noclip state. True if on.
-add("PlayerNoClip", nil, movement_hook)
+add("PlayerNoClip", nil, cloak_hook)
 
 --- Called whenever a player steps
 -- @name PlayerFootstep
@@ -527,7 +511,7 @@ end, returnOnlyOnYourself )
 -- @shared
 -- @param Player ply Player who jumped
 -- @param number speed The velocity/impulse of the jump
-add("OnPlayerJump", nil, movement_hook)
+add("OnPlayerJump", nil, cloak_hook)
 
 --- Called when a player makes contact with the ground after a jump or a fall.
 -- @name OnPlayerHitGround
@@ -537,7 +521,7 @@ add("OnPlayerJump", nil, movement_hook)
 -- @param boolean inWater Did the player land in water?
 -- @param boolean onFloater Did the player land on an object floating in the water?
 -- @param number speed The speed at which the player hit the ground
-add("OnPlayerHitGround", nil, movement_hook)
+add("OnPlayerHitGround", nil, cloak_hook)
 
 --- Called when a player presses a key
 -- @name KeyPress
@@ -545,7 +529,7 @@ add("OnPlayerHitGround", nil, movement_hook)
 -- @shared
 -- @param Player ply Player pressing the key
 -- @param number key The key being pressed
-add("KeyPress", nil, movement_hook)
+add("KeyPress", nil, cloak_hook)
 
 --- Called when a player releases a key
 -- @name KeyRelease
@@ -553,7 +537,7 @@ add("KeyPress", nil, movement_hook)
 -- @shared
 -- @param Player ply Player releasing the key
 -- @param number key The key being released
-add("KeyRelease", nil, movement_hook)
+add("KeyRelease", nil, cloak_hook)
 
 --- Called when a player punts with the gravity gun
 -- @name GravGunPunt
@@ -596,7 +580,7 @@ end)
 -- @param Player ply Player changing weapon
 -- @param Weapon oldwep Old weapon
 -- @param Weapon newweapon New weapon
-add("PlayerSwitchWeapon", nil, movement_hook, returnOnlyOnYourselfFalse)
+add("PlayerSwitchWeapon", nil, cloak_hook, returnOnlyOnYourselfFalse)
 
 --- Called when a player's reserve ammo count changes.
 -- @name PlayerAmmoChanged
@@ -606,7 +590,7 @@ add("PlayerSwitchWeapon", nil, movement_hook, returnOnlyOnYourselfFalse)
 -- @param number ammoID The ammo type ID
 -- @param number oldcount Previous ammo count
 -- @param number newcount The new ammo count
-add("PlayerAmmoChanged", nil, movement_hook)
+add("PlayerAmmoChanged", nil, cloak_hook)
 
 --- Called when a player animation event occurs
 -- @name DoAnimationEvent
@@ -732,7 +716,7 @@ add("Tick")
 -- @shared
 -- @param Player ply Player whose command is being processed
 -- @param CUserCmd cmd The UserCmd being processed
-add("StartCommand", nil, movement_hook)
+add("StartCommand", nil, cloak_hook)
 
 --- Called each UserCmd for each player to transfer information from the UserCmd to the CMoveData before the move is processed.
 -- @name SetupMove
@@ -741,7 +725,7 @@ add("StartCommand", nil, movement_hook)
 -- @param Player ply Player whose move is being setup
 -- @param CMoveData move The MoveData being processed
 -- @param CUserCmd cmd The UserCmd being processed
-add("SetupMove", nil, movement_hook)
+add("SetupMove", nil, cloak_hook)
 
 --- Called each UserCmd for each player after their move has been processed.
 -- @name FinishMove
@@ -749,7 +733,7 @@ add("SetupMove", nil, movement_hook)
 -- @shared
 -- @param Player ply Player whose move is being finished
 -- @param CMoveData move The MoveData being processed
-add("FinishMove", nil, movement_hook)
+add("FinishMove", nil, cloak_hook)
 
 --- Called when starfall chip errors
 -- @name StarfallError

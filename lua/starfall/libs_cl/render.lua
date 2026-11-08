@@ -2354,15 +2354,11 @@ end
 -- @return number? X position or nil if the player is not aiming at the screen
 -- @return number? Y position or nil if the player is not aiming at the screen
 function render_library.cursorPos(ply, screen)
-	local lp = SF.GetLocalPlayer()
-	local is_owner = instance.player == SF.Superuser or instance.player == lp
 	if ply~=nil then
 		ply = eunwrap(ply)
-		if not is_owner and ply == lp then return end
 		if not ply:IsPlayer() then SF.Throw("Entity isn't a player", 2) end
 	else
-		if not is_owner then return end
-		ply = lp
+		ply = LocalPlayer()
 	end
 
 	if screen~=nil then screen = eunwrap(screen) else screen = renderdata.renderEnt end

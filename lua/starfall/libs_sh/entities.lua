@@ -103,6 +103,7 @@ instance.Types.Entity.GetEntity = getent
 -- @return string String representation of the entity
 function ent_meta:__tostring()
 	local ent = eunwrap(self)
+	if is_cloaked_chain(instance, ent) then return "(null entity)" end
 	return Ent_IsValid(ent) and tostring(ent) or "(null entity)"
 end
 
