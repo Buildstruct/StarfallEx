@@ -2094,7 +2094,11 @@ local function is_cloaked_in(instance, ent, set)
 	local cloak = set and set[ent]
 	if not cloak then return false end
 	local BSA = _G.BSA
-	if not BSA or not BSA.Players or not BSA.Players.CanSeeCloak then return false end
+	if not BSA or not BSA.Players or not BSA.Players.CanSeeCloak or not BSA.Players.IsCloak then return false end
+	if not BSA.Players.IsCloak(cloak) then
+		invalidate_cloak_cache()
+		return false
+	end
 	return not BSA.Players.CanSeeCloak(instance.player, cloak)
 end
 
@@ -2109,10 +2113,16 @@ function SF.IsCloakedFrom(instance, ent)
 	SF.GetCloakedPlayers()
 	if not cloaked_set then return false end
 	local BSA = _G.BSA
-	if not BSA or not BSA.Players or not BSA.Players.CanSeeCloak then return false end
+	if not BSA or not BSA.Players or not BSA.Players.CanSeeCloak or not BSA.Players.IsCloak then return false end
 	while Ent_IsValid(ent) and not Ent_IsWorld(ent) do
 		local cloak = cloaked_set[ent]
-		if cloak and not BSA.Players.CanSeeCloak(instance.player, cloak) then return true end
+		if cloak then
+			if not BSA.Players.IsCloak(cloak) then
+				invalidate_cloak_cache()
+			elseif not BSA.Players.CanSeeCloak(instance.player, cloak) then
+				return true
+			end
+		end
 		ent = Ent_GetParent(ent)
 	end
 	return false
@@ -2159,12 +2169,12 @@ if CLIENT then
 		local cloaked = SF.GetCloakedPlayers()
 		if not cloaked then return false end
 		local BSA = _G.BSA
-		if not BSA or not BSA.Players or not BSA.Players.CanSeeCloak then return false end
+		if not BSA or not BSA.Players or not BSA.Players.CanSeeCloak or not BSA.Players.IsCloak then return false end
 		local lp = SF.GetLocalPlayer()
 		if instance.player == lp then return false end
 		for i = 1, #cloaked do
 			local ply = cloaked[i]
-			if BSA.Players.CanSeeCloak(lp, ply) and not BSA.Players.CanSeeCloak(instance.player, ply) then
+			if BSA.Players.IsCloak(ply) and BSA.Players.CanSeeCloak(lp, ply) and not BSA.Players.CanSeeCloak(instance.player, ply) then
 				return true
 			end
 		end

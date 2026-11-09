@@ -91,7 +91,15 @@ local function convertFilter(filter, whitelist, skip_cloak)
 		end
 		local cloaked = SF.GetCloakedPlayers()
 		if cloaked then
-			for i = 1, #cloaked do l[#l+1] = cloaked[i] end
+			local BSA = _G.BSA
+			if BSA and BSA.Players and BSA.Players.IsCloak then
+				for i = 1, #cloaked do
+					local ply = cloaked[i]
+					if BSA.Players.IsCloak(ply) then l[#l+1] = ply end
+				end
+			else
+				for i = 1, #cloaked do l[#l+1] = cloaked[i] end
+			end
 		end
 		return l, false
 	elseif isfunction(filter) then
