@@ -2674,7 +2674,12 @@ end
 
 do
 	local function compileModule(source, path)
-		local ok, init = xpcall(function() local r = (source and CompileString(source, path) or CompileFile(path)) r=r and r() return r end, debug.traceback)
+		local ok, init = xpcall(function()
+			local r = (source and CompileString(source, path) or CompileFile(path))
+			if isfunction(r) then jit.off(r, true) end
+			r = r and r()
+			return r
+		end, debug.traceback)
 		if not ok then
 			ErrorNoHalt("[SF] Attempt to load bad module: " .. path .. "\n" .. init .. "\n")
 			init = nil
