@@ -62,12 +62,23 @@ end
 local Ent_IsValid = ENT_META.IsValid
 hook.Add("Think", "SF_HoloCloakCheck", function()
 	if not _G.BSA then return end
+	local cloaked = SF.GetCloakedPlayers()
+	if not cloaked then return end
 	for instance in pairs(SF.allInstances) do
-		for holo in pairs(entList.entsByInstance[instance] or {}) do
-			if Ent_IsValid(holo) then
-				local sfParent = Ent_GetTable(holo).sfParent
-				if sfParent and sfParent.parent and Ent_IsValid(sfParent.parent) and is_cloaked_chain(instance, sfParent.parent) then
-					sfParent:setParent()
+		local affected = false
+		for i = 1, #cloaked do
+			if SF.IsCloakedFrom(instance, cloaked[i]) then
+				affected = true
+				break
+			end
+		end
+		if affected then
+			for holo in pairs(entList.entsByInstance[instance] or {}) do
+				if Ent_IsValid(holo) then
+					local sfParent = Ent_GetTable(holo).sfParent
+					if sfParent and sfParent.parent and Ent_IsValid(sfParent.parent) and is_cloaked_chain(instance, sfParent.parent) then
+						sfParent:setParent()
+					end
 				end
 			end
 		end
