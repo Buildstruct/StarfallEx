@@ -17,6 +17,7 @@ local function Ent_IsVehicle(ent) return dgetmeta(ent)==VEH_META end
 local function Ent_IsWeapon(ent) return dgetmeta(ent)==WEP_META end
 -- Fixes case where addon detours SetParent and SF doesn't use the detour
 function Ent_SetParent(x,y) Ent_SetParent=ENT_META.SetParent return Ent_SetParent(x,y) end
+function Ent_FollowBone(x,y,z) Ent_FollowBone=ENT_META.FollowBone return Ent_FollowBone(x,y,z) end
 
 local Ply_IsSuperAdmin,Ply_Nick,Ply_PrintMessage,Ply_SteamID = PLY_META.IsSuperAdmin,PLY_META.Nick,PLY_META.PrintMessage,PLY_META.SteamID
 
@@ -647,7 +648,7 @@ SF.SavedUserList = {
 			end
 		end
 	},
-	__call = function(p, prefix, desc, filename, onblock, onunblock)
+	__call = function(p, prefix, desc, filename, onblock, onunblock, auth)
 		local obj = setmetatable({
 			list = {},
 			filename = filename,
@@ -660,10 +661,18 @@ SF.SavedUserList = {
 		end
 
 		SF.SteamIDConcommand("sf_"..prefix.."_add", function(executor, id)
+			if auth and not auth(executor) then 
+				Ply_PrintMessage(executor, HUD_PRINTCONSOLE, "Not allowed!\n")
+				return
+			end
 			obj:add(id)
 		end, "Add a user to list of " .. desc, false)
 
 		SF.SteamIDConcommand("sf_"..prefix.."_remove", function(executor, id)
+			if auth and not auth(executor) then 
+				Ply_PrintMessage(executor, HUD_PRINTCONSOLE, "Not allowed!\n")
+				return
+			end
 			obj:remove(id)
 		end, "Remove a user from list of " .. desc, false,
 		function(cmd)
@@ -884,12 +893,10 @@ SF.RenderStack = {
 }
 setmetatable(SF.RenderStack, SF.RenderStack)
 
-local USE_AWESOMIUM_HACK = BRANCH == "unknown" or BRANCH == "dev" or BRANCH == "prerelease"
 SF.HttpTextureRequest = {
 	__index = {
 		INIT=function(self, new) return new~=self.LOAD and new~=self.DESTROY end,
-		LOAD=function(self, new) return new~=self.FETCH and new~=self.LAYOUT and new~=self.DESTROY end,
-		FETCH=function(self, new) return new~=self.LOAD and new~=self.DESTROY end,
+		LOAD=function(self, new) return new~=self.LAYOUT and new~=self.DESTROY end,
 		LAYOUT=function(self, new) return new~=self.RENDER and new~=self.LAYOUT and new~=self.DESTROY end,
 		RENDER=function(self, new) return new~=self.DESTROY end,
 		DESTROY=function(self, new) return true end,
@@ -905,11 +912,6 @@ SF.HttpTextureRequest = {
 			if textureloader then self.textureloader = textureloader end
 			if self:badnewstate(self.LOAD) then return end
 
-			if USE_AWESOMIUM_HACK and not string.match(self.url, "^data:") then
-				self:loadAwesomium()
-				return
-			end
-
 			self.textureloader.Panel:AddFunction("sf", "imageLoaded", function(w, h)
 				timer.Simple(0, function() self:layout(w, h) end)
 			end)
@@ -921,23 +923,8 @@ SF.HttpTextureRequest = {
 			img.removeAttribute("height");
 			img.style.left="0px";
 			img.style.top="0px";
-			img.src="]] .. string.JavascriptSafe(self.url) .. [[";]]..
-			(BRANCH == "unknown" and "\nif(img.complete)renderImage();" or ""))
-		end,
-
-		loadAwesomium = function(self)
-			if self:badnewstate(self.FETCH) then return end
-
-			http.Fetch(self.url, function(body, _, headers, code)
-				if code >= 300 then self:destroy() return end
-
-				local content_type = headers["Content-Type"] or headers["content-type"]
-				local data = util.Base64Encode(body, true)
-
-				self.url = table.concat({"data:", content_type, ";base64,", data})
-
-				self:load()
-			end, function() self:destroy() end)
+			img.src="]] .. string.JavascriptSafe(self.url) .. [[";]]
+			)
 		end,
 
 		layout = function(self, w, h)
@@ -2767,9 +2754,7 @@ do
 				for k, path in pairs(sendToClientTbl) do
 					files[name..":"..path] = file.Read(path, "LUA")
 				end
-				net.Start("sf_receivelibrary")
-				net.WriteStarfall({files = files, mainfile = name})
-				net.Broadcast()
+				SF.SendStarfall("sf_receivelibrary", {files = files, mainfile = name})
 			end
 
 			SF.ReloadingLibrary = false

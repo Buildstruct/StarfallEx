@@ -78,7 +78,7 @@ local CustomPropData = {
             net.Start("starfall_custom_prop")
             net.WriteReliableEntity(self.prop)
 
-            local stream = net.WriteStream(self.prop.sfmeshdata, function() self:finish() end, true)
+            local stream = net.WriteStream(self.prop.sfmeshdata, function() self:finish() end, true, self.recip and {self.recip} or player.GetHumans())
             if stream then
                 if self.recip then net.Send(self.recip) else net.Broadcast() end
                 -- Simple timeout. Will be ignored if finished before the timeout
@@ -198,7 +198,6 @@ local function createCustomProp(ply, pos, ang, sfmeshdata)
 	end
 
 	checkMesh(ply, meshConvexes)
-	SF.NetBurst:use(ply, #sfmeshdata*8)
 
 	local propent = ents.Create("starfall_prop")
 	propent.sf_physmesh = meshConvexes

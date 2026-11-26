@@ -51,7 +51,7 @@ function net.ReadStarfall(ply, callback)
 	end)
 end
 
-function net.WriteStarfall(sfdata, callback)
+function net.WriteStarfall(sfdata, callback, recipients)
 	if #sfdata.mainfile > 255 then error("Main file name too large: " .. #sfdata.mainfile .. " (max is 255)") end
 	if SERVER then
 		if IsValid(sfdata.proc) then
@@ -71,10 +71,10 @@ function net.WriteStarfall(sfdata, callback)
 	net.WriteString(sfdata.mainfile)
 
 	if sfdata.compressed then
-		return net.WriteStream(sfdata.compressed, callback, true)
+		return net.WriteStream(sfdata.compressed, callback, true, recipients)
 	else
 		local data = SF.CompressFiles(sfdata.files)
-		return net.WriteStream(data, callback, true)
+		return net.WriteStream(data, callback, true, recipients)
 	end
 end
 
@@ -98,7 +98,8 @@ end
 
 -- Legacy decoder
 function SF.DecompressFiles(data)
-	data = util.Decompress(data)
+	if data == "" then return {} end
+	data = util.Decompress(data, 64000000)
 	if not data or #data < 8 then error("Error decompressing starfall data!") end
 	local buff = SF.StringStream(data, 5)
 	local headers = {}
@@ -119,11 +120,12 @@ if SERVER then
 
 	function SF.SendStarfall(msg, sfdata, recipient, callback)
 		net.Start(msg)
-		net.WriteStarfall(sfdata, callback)
 		if recipient then
-			net.Send(recipient)
+			local ok, err = pcall(net.WriteStarfall, sfdata, callback, istable(recipient) and recipient or {recipient})
+			if ok then net.Send(recipient) else net.Abort() return err end
 		else
-			net.Broadcast()
+			local ok, err = pcall(net.WriteStarfall, sfdata, callback, player.GetHumans())
+			if ok then net.Broadcast() else net.Abort() return err end
 		end
 	end
 
@@ -232,8 +234,8 @@ else
 	-- Sends starfall files to server
 	function SF.SendStarfall(msg, sfdata, callback)
 		net.Start(msg)
-		net.WriteStarfall(sfdata, callback)
-		net.SendToServer()
+		local ok, err = pcall(net.WriteStarfall, sfdata, callback)
+		if ok then net.SendToServer() else net.Abort() return err end
 	end
 
 	---Push code to a starfall chip owned by this user
@@ -241,9 +243,9 @@ else
 	---@param sfdata any
 	function SF.PushStarfall(sf, sfdata)
 		net.Start("starfall_upload_push")
-			net.WriteEntity(sf)
-			net.WriteStarfall(sfdata)
-		net.SendToServer()
+		net.WriteEntity(sf)
+		local ok, err = pcall(net.WriteStarfall, sfdata)
+		if ok then net.SendToServer() else net.Abort() return err end
 	end
 
 	
@@ -287,7 +289,10 @@ else
 		if #mainfile==0 then mainfile = nil end
 		SF.Editor.BuildIncludesTable(mainfile,
 			function(files, mainfile)
-				SF.SendStarfall("starfall_upload", {files = files, mainfile = mainfile})
+				local err = SF.SendStarfall("starfall_upload", {files = files, mainfile = mainfile})
+				if err then
+					SF.AddNotify(LocalPlayer(), "Failed to upload starfall: " .. err, "ERROR", 7, "ERROR1")
+				end
 			end,
 			function(err)
 				SF.SendStarfall("starfall_upload", {files = {}, mainfile = ""})

@@ -143,7 +143,7 @@ if CLIENT then
 			if v.Init then v:Init() end
 		end
 
-		editor:Setup("Starfall Editor (" .. GetGlobalString("SF.Version") .. ")", "starfall", "Starfall")
+		editor:Setup("Starfall Editor (" .. GetGlobal2String("SF.Version") .. ")", "starfall", "Starfall")
 	end
 
 	function SF.Editor.createGlobalPermissionsPanel(client, server)
@@ -739,7 +739,7 @@ elseif SERVER then
 				net.WriteBool(true)
 			else
 				net.WriteBool(false)
-				ply.SF_SentDocs = net.WriteStream(SF.Docs, nil, true)
+				ply.SF_SentDocs = net.WriteStream(SF.Docs, nil, true, {ply})
 			end
 			net.Send(ply)
 		end
